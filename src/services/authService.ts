@@ -10,7 +10,7 @@ const loginService = async (request: {
 }) => {
   try {
     const response = await axiosService.post(
-      `http://localhost:5050/api${API_BASE_URL}/login`,
+      `https://backend-production-7230.up.railway.app/api${API_BASE_URL}/login`,
       request
     );
     return response.data.items as {
