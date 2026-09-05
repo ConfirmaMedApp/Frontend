@@ -1,0 +1,12 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - us-east1-docker.pkg.dev/confirmamed/confirmamedmainfrontend/app
+      - --build-arg
+      - VITE_API_URL=${_VITE_API_URL}
+      - .
+
+images:
+  - us-east1-docker.pkg.dev/confirmamed/confirmamedmainfrontend/app

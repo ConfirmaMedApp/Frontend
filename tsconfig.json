@@ -1,0 +1,29 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@shadcn/*": ["components/ui/*"],
+      "@custom/*": ["components/custom/*"],
+      "@config/*": ["config/*"],
+      "@features/*": ["features/*"],
+      "@hooks/*": ["hooks/*"],
+      "@interfaces/*": ["interfaces/*"],
+      "@layouts/*": ["layouts/*"],
+      "@pages/*": ["pages/*"],
+      "@routes/*": ["routes/*"],
+      "@schemas/*": ["schemas/*"],
+      "@services/*": ["services/*"],
+      "@store/*": ["store/*"],
+      "@utils/*": ["utils/*"],
+      "@lib/*": ["lib/*"]
+    },
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+  }
+}

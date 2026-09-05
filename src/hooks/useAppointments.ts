@@ -1,0 +1,79 @@
+import type { AppointmentRequest } from "@/interfaces/appointmentsInterface";
+import { appointmentsService } from "@/services/appointemntsService";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+// Hook para obtener todas las agendas con parámetros opcionales
+export const useAppointments = (params: {
+  dateSelected: string;
+  specialityId?: number | null;
+  doctorId?: number | null;
+  isOccupped?: boolean | null;
+  limit?: number | null;
+  offset?: number | null;
+}) => {
+  return useQuery({
+    queryKey: ["appointments", params],
+    queryFn: () =>
+      appointmentsService.getAllAppointments(
+        params.dateSelected ?? "",
+        params.specialityId ?? null,
+        params.doctorId ?? null,
+        params.isOccupped ?? null,
+        params.limit ?? null,
+        params.offset ?? null
+      ),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+};
+
+// Hook para obtener una agenda por su ID
+export const useAppointmentById = (id: number) => {
+  return useQuery({
+    queryKey: ["appointment", id],
+    queryFn: () => {
+      if (!id) throw new Error("El ID de la agenda es requerido");
+      return appointmentsService.getAppointmentById(id);
+    },
+    enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+};
+
+// Hook para obtener los días con citas para un año y mes específicos
+export const useGetDaysForYearAndMonth = (year: number, month: number) => {
+  return useQuery({
+    queryKey: ["daysAppointments", year, month],
+    queryFn: () =>
+      appointmentsService.getDaysForYearAndMonth(year, month, null),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+};
+
+// Hook para crear una o varias agendas
+export const useCreateAppointment = () => {
+  return useMutation({
+    mutationFn: (data: AppointmentRequest) =>
+      appointmentsService.createAppointment(data),
+  });
+};
+
+// Hook para crear una o varias agendas
+export const useAssignAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { appointmentId: number; patientId: number }) =>
+      appointmentsService.assignAppointment(data),
+    onSuccess: () => {
+      // Aquí podrías invalidar queries relacionadas si es necesario
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["appointment"] });
+      queryClient.invalidateQueries({ queryKey: ["daysAppointments"] });
+    },
+  });
+};
