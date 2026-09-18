@@ -6,6 +6,7 @@ export const useDocumentTypes = () => {
   return useQuery({
     queryKey: ["documentTyps"],
     queryFn: () => documentTypesService.getAllDocumentTypes(),
-    staleTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };

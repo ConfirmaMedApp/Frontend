@@ -6,6 +6,7 @@ export const useDurations = () => {
   return useQuery({
     queryKey: ["durations"],
     queryFn: () => durationsService.getAllDurations(),
-    staleTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };

@@ -97,6 +97,7 @@ export const useDoctorsBySpeciality = (specialityId: number) => {
       return specialityService.getDoctorsBySpeciality(specialityId);
     },
     enabled: !!specialityId,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };

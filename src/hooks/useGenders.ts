@@ -6,6 +6,7 @@ export const useGenders = () => {
   return useQuery({
     queryKey: ["genders"],
     queryFn: () => gendersService.getAllGenders(),
-    staleTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };

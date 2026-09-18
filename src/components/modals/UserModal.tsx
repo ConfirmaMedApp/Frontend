@@ -31,6 +31,7 @@ import {
 import {
   userCreateSchema,
   userUpdateSchema,
+  userRoles,
   type UserCreateFormValues,
   type UserUpdateFormValues,
 } from "@/schemas/usersSchema";
@@ -73,6 +74,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
       password: "",
       doctorId: undefined,
       status: true,
+      role: undefined,
     },
   });
 
@@ -91,6 +93,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
           password: "",
           doctorId: data.doctor.id,
           status: data.status,
+          role: data.role as (typeof userRoles)[number],
         });
       } else if (mode === "create") {
         form.reset({
@@ -101,6 +104,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
           password: "",
           doctorId: undefined,
           status: true,
+          role: undefined,
         });
       }
     } else {
@@ -113,6 +117,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
         password: "",
         doctorId: undefined,
         status: true,
+        role: undefined,
       });
     }
   }, [open, mode, userData, form]);
@@ -351,6 +356,40 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                               </SelectItem>
                             )
                           )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Rol */}
+              <div className="">
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Rol <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccione un rol" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {userRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

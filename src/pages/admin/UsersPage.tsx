@@ -151,6 +151,7 @@ const UsersPage = () => {
                 <TableHead>Oficina</TableHead>
                 <TableHead>Doctor</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Rol</TableHead>
                 <TableHead className="w-[100px] text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -176,6 +177,9 @@ const UsersPage = () => {
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-4 w-36" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-16" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-5 w-16" />
@@ -233,6 +237,9 @@ const UsersPage = () => {
                       <Badge variant={user.status ? "success" : "destructive"}>
                         {user.status ? "Activo" : "Inactivo"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={"outline"}>{user.role}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

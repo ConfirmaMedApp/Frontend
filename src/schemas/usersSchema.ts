@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Roles disponibles para los usuarios
+export const userRoles = ["admin", "secretaria", "doctor"] as const;
+
 // Esquema de validaciones para crear un usuario
 export const userCreateSchema = z.object({
   name: z
@@ -30,6 +33,9 @@ export const userCreateSchema = z.object({
     .positive("El doctor no es válido"),
   status: z.boolean({
     message: "El estado es obligatorio",
+  }),
+  role: z.enum(userRoles, {
+    message: "El rol es obligatorio",
   }),
 });
 
@@ -64,6 +70,11 @@ export const userUpdateSchema = z.object({
   status: z
     .boolean({
       message: "El estado debe ser verdadero o falso",
+    })
+    .optional(),
+  role: z
+    .enum(userRoles, {
+      message: "El rol no es válido",
     })
     .optional(),
 });

@@ -15,6 +15,7 @@ export const useOffices = (params: {
         params.offset ?? null,
         params.search ?? null
       ),
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };

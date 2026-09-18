@@ -59,6 +59,7 @@ import {
   ChevronsRightIcon,
   FilterX,
   FunnelPlus,
+  RefreshCw,
   UserPlus,
 } from "lucide-react";
 import { useState } from "react";
@@ -95,18 +96,24 @@ const ShedulesPage = () => {
   const month = currentDate.getMonth() + 1; // getMonth() retorna 0-11
 
   // Hooks
-  const { data: daysData, isLoading: isLoadingDays } =
-    useGetDaysForYearAndMonth(year, month);
+  const {
+    data: daysData,
+    isLoading: isLoadingDays,
+    refetch: refetchDays,
+  } = useGetDaysForYearAndMonth(year, month);
 
-  const { data: appointmentsData, isLoading: isLoadingAppointments } =
-    useAppointments({
-      dateSelected: selectedDate || "",
-      specialityId,
-      doctorId,
-      isOccupped,
-      limit: itemsPerPage,
-      offset,
-    });
+  const {
+    data: appointmentsData,
+    isLoading: isLoadingAppointments,
+    refetch: refetchAppointments,
+  } = useAppointments({
+    dateSelected: selectedDate || "",
+    specialityId,
+    doctorId,
+    isOccupped,
+    limit: itemsPerPage,
+    offset,
+  });
 
   const { data: specialitiesData } = useSpecialities({
     limit: null,
@@ -181,6 +188,13 @@ const ShedulesPage = () => {
   // Navegar al mes siguiente
   const nextMonth = () => {
     setCurrentDate(new Date(year, month, 1));
+  };
+
+  // Refrescar los datos de la página
+  const handleRefresh = () => {
+    refetchAppointments();
+    refetchDays();
+    toast.success("Datos actualizados");
   };
 
   // Limpiar filtros
@@ -489,6 +503,14 @@ const ShedulesPage = () => {
               >
                 Limpiar filtros
                 <BrushCleaning />
+              </Button>
+              <Button
+                className="flex-1"
+                variant={"outline"}
+                onClick={handleRefresh}
+              >
+                Refrescar
+                <RefreshCw />
               </Button>
             </div>
           </Card>

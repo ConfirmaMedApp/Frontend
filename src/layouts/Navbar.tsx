@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import {
   DropdownMenu,
@@ -10,10 +11,12 @@ import {
 import { ChevronDown } from "lucide-react";
 import { navigate } from "@/lib/navigation";
 import ModeToggle from "../components/custom/ModeToggle";
+import ProfileModal from "../components/modals/ProfileModal";
 import useAuth from "@/hooks/useAuth";
 
 const Navbar = () => {
   const { getInfoUser, logout } = useAuth();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -47,7 +50,9 @@ const Navbar = () => {
           <DropdownMenuContent>
             <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Perfil</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setProfileModalOpen(true)}>
+              Perfil
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="sm:hidden" />
             <DropdownMenuItem onClick={handleLogout}>
               Cerrar sesión
@@ -59,6 +64,11 @@ const Navbar = () => {
           <ModeToggle />
         </div>
       </div>
+
+      <ProfileModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+      />
     </nav>
   );
 };

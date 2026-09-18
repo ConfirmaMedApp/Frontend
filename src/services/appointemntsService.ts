@@ -45,7 +45,7 @@ const getAllAppointments = async (
 ) => {
   try {
     const response = await axiosService.get(
-      `${API_URL}/dates/${dateSelected}/filters`,
+      `${API_URL}/user/dates/${dateSelected}/filters`,
       {
         params: {
           specialityId,

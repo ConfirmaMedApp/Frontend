@@ -11,6 +11,7 @@ export interface User {
   office: Office;
   doctor: Doctor;
   status: boolean;
+  role: string;
 }
 
 // Interfaz para crear un nuevo usuario
@@ -22,6 +23,7 @@ export interface UserRequest {
   password: string;
   doctorId: number;
   status: boolean;
+  role: string;
 }
 
 // Interfaz para actualizar un usuario existente
@@ -34,4 +36,5 @@ export interface UserUpdateRequest {
   password?: string;
   doctorId?: number;
   status?: boolean;
+  role?: string;
 }
