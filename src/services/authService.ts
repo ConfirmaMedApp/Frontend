@@ -9,10 +9,7 @@ const loginService = async (request: {
   password: string;
 }) => {
   try {
-    const response = await axiosService.post(
-      `https://backend-production-7230.up.railway.app/api${API_BASE_URL}/login`,
-      request
-    );
+    const response = await axiosService.post(`${API_BASE_URL}/login`, request);
     return response.data.items as {
       id: number;
       fullName: string;
