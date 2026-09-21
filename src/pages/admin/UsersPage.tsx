@@ -231,7 +231,9 @@ const UsersPage = () => {
                       {user.office.name}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {user.doctor.name} {user.doctor.lastName}
+                      {user.doctor
+                        ? `${user.doctor.name} ${user.doctor.lastName}`
+                        : "No asignado"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={user.status ? "success" : "destructive"}>

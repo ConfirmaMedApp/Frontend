@@ -34,3 +34,11 @@ export interface Appointment {
   isApproved: boolean;
   userId: number;
 }
+
+// Interfaz para las credenciales de acceso del doctor a la videollamada
+export interface DoctorVideoCredentials {
+  roomUrl: string;
+  token: string;
+  joinUrl: string;
+  expiresAt: string;
+}

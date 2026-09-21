@@ -85,6 +85,18 @@ const assignAppointment = async (data: {
   }
 };
 
+// Función para obtener las credenciales de acceso del doctor a la videollamada de una cita
+const getDoctorVideoToken = async (appointmentId: number) => {
+  try {
+    const response = await axiosService.get(
+      `${API_URL}/${appointmentId}/video/doctor-token`
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al obtener el acceso a la videollamada");
+  }
+};
+
 // Exportar el servicio de citas
 export const appointmentsService = {
   createAppointment,
@@ -92,4 +104,5 @@ export const appointmentsService = {
   getAllAppointments,
   assignAppointment,
   getAppointmentById,
+  getDoctorVideoToken,
 };

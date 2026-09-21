@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -35,12 +36,18 @@ import {
   type UserCreateFormValues,
   type UserUpdateFormValues,
 } from "@/schemas/usersSchema";
-import type { User } from "@/interfaces/usersInterface";
-import { useCreateUser, useUpdateUser, useUserById } from "@/hooks/useUsers";
+import type { AvatarPreset, User } from "@/interfaces/usersInterface";
+import {
+  useAvatarPresets,
+  useCreateUser,
+  useUpdateUser,
+  useUserById,
+} from "@/hooks/useUsers";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDoctors } from "@/hooks/useDoctors";
+import { cn } from "@/lib/utils";
 
 interface UserModalProps {
   open: boolean;
@@ -59,6 +66,8 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
     search: null,
   });
 
+  const { data: avatarPresets } = useAvatarPresets();
+
   // Hook para obtener usuario por ID cuando está en modo edición
   const { data: userData, isLoading: isLoadingUser } = useUserById(
     user?.id || 0
@@ -72,9 +81,10 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
       email: "",
       username: "",
       password: "",
-      doctorId: undefined,
+      doctorId: null,
       status: true,
       role: undefined,
+      avatarPresetKey: undefined,
     },
   });
 
@@ -91,7 +101,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
           email: data.email,
           username: data.username,
           password: "",
-          doctorId: data.doctor.id,
+          doctorId: data.doctor?.id ?? null,
           status: data.status,
           role: data.role as (typeof userRoles)[number],
         });
@@ -102,9 +112,10 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
           email: "",
           username: "",
           password: "",
-          doctorId: undefined,
+          doctorId: null,
           status: true,
           role: undefined,
+          avatarPresetKey: undefined,
         });
       }
     } else {
@@ -115,9 +126,10 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
         email: "",
         username: "",
         password: "",
-        doctorId: undefined,
+        doctorId: null,
         status: true,
         role: undefined,
+        avatarPresetKey: undefined,
       });
     }
   }, [open, mode, userData, form]);
@@ -329,8 +341,10 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                       </FormLabel>
                       <Select
                         key={field.value}
-                        onValueChange={(value) => field.onChange(Number(value))}
-                        value={field.value?.toString()}
+                        onValueChange={(value) =>
+                          field.onChange(value === "none" ? null : Number(value))
+                        }
+                        value={field.value == null ? "none" : field.value.toString()}
                         disabled={isLoading}
                       >
                         <FormControl>
@@ -339,9 +353,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="0" disabled>
-                            Seleccione un doctor
-                          </SelectItem>
+                          <SelectItem value="none">Ninguno</SelectItem>
                           {doctors?.items?.map(
                             (doctor: {
                               id: number;
@@ -363,6 +375,46 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                   )}
                 />
               </div>
+
+              {/* Avatar (solo al crear) */}
+              {mode === "create" && (
+                <FormField
+                  control={form.control}
+                  name="avatarPresetKey"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Avatar <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-6 gap-2">
+                          {avatarPresets?.items?.map(
+                            (preset: AvatarPreset) => (
+                              <button
+                                key={preset.key}
+                                type="button"
+                                onClick={() => field.onChange(preset.key)}
+                                disabled={isLoading}
+                                className={cn(
+                                  "rounded-full ring-offset-2 ring-offset-background transition-all hover:scale-105",
+                                  field.value === preset.key &&
+                                    "ring-2 ring-primary"
+                                )}
+                              >
+                                <Avatar className="size-16 mx-auto">
+                                  <AvatarImage src={preset.url} />
+                                  <AvatarFallback>?</AvatarFallback>
+                                </Avatar>
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* Rol */}
               <div className="">

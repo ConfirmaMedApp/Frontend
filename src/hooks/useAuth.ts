@@ -12,12 +12,16 @@ interface AuthHook {
   checkToken: () => Promise<boolean>;
   login: (
     credentials: LoginCredentials
-  ) => Promise<{ id: number; fullName: string; token: string } | undefined>;
+  ) => Promise<
+    | { id: number; fullName: string; role: string; token: string }
+    | undefined
+  >;
   logout: () => Promise<void>;
   getInfoUser: () => {
     id: number;
     userName: string;
     fullName: string;
+    role: string;
     token: string;
   } | null;
 }
@@ -29,6 +33,7 @@ const useAuth = (): AuthHook => {
     id: number;
     fullName: string;
     userName: string;
+    role: string;
     token: string;
   } | null => {
     const userData = localStorage.getItem("user");

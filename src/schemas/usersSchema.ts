@@ -27,16 +27,18 @@ export const userCreateSchema = z.object({
     .min(8, "La contraseña debe tener al menos 8 caracteres"),
   doctorId: z
     .number({
-      message: "El doctor es obligatorio",
+      message: "El doctor no es válido",
     })
     .int("El doctor no es válido")
-    .positive("El doctor no es válido"),
+    .positive("El doctor no es válido")
+    .nullable(),
   status: z.boolean({
     message: "El estado es obligatorio",
   }),
   role: z.enum(userRoles, {
     message: "El rol es obligatorio",
   }),
+  avatarPresetKey: z.string().min(1, "Debe seleccionar un avatar"),
 });
 
 // Esquema de validacion para actualizar un usuario
@@ -66,6 +68,7 @@ export const userUpdateSchema = z.object({
     })
     .int("El doctor no es válido")
     .positive("El doctor no es válido")
+    .nullable()
     .optional(),
   status: z
     .boolean({

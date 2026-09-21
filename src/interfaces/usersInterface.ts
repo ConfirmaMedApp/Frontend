@@ -9,9 +9,10 @@ export interface User {
   email: string;
   username: string;
   office: Office;
-  doctor: Doctor;
+  doctor: Doctor | null;
   status: boolean;
   role: string;
+  avatarUrl?: string;
 }
 
 // Interfaz para crear un nuevo usuario
@@ -21,9 +22,22 @@ export interface UserRequest {
   email: string;
   username: string;
   password: string;
-  doctorId: number;
+  doctorId: number | null;
   status: boolean;
   role: string;
+  avatarPresetKey: string;
+}
+
+// Interfaz de un avatar predefinido
+export interface AvatarPreset {
+  key: string;
+  url: string;
+}
+
+// Interfaz para actualizar el avatar de un usuario
+export interface UpdateAvatarRequest {
+  presetKey?: string;
+  file?: File;
 }
 
 // Interfaz para actualizar un usuario existente
@@ -34,7 +48,7 @@ export interface UserUpdateRequest {
   email?: string;
   username?: string;
   password?: string;
-  doctorId?: number;
+  doctorId?: number | null;
   status?: boolean;
   role?: string;
 }

@@ -1,4 +1,5 @@
 import type {
+  UpdateAvatarRequest,
   UserRequest,
   UserUpdateRequest,
 } from "@/interfaces/usersInterface";
@@ -61,6 +62,30 @@ export const useUpdateUser = () => {
   return useMutation({
     mutationFn: ({ ...data }: UserUpdateRequest) =>
       usersService.updateUser(data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user", id] });
+    },
+  });
+};
+
+// Hook para obtener los avatares predefinidos disponibles
+export const useAvatarPresets = () => {
+  return useQuery({
+    queryKey: ["avatarPresets"],
+    queryFn: () => usersService.getAvatarPresets(),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+};
+
+// Hook para actualizar el avatar de un usuario
+export const useUpdateAvatar = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, ...data }: UpdateAvatarRequest & { id: number }) =>
+      usersService.updateAvatar(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["user", id] });

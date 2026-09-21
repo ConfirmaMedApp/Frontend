@@ -2,6 +2,7 @@ import { AppSidebar } from "@/layouts/Sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Outlet } from "react-router-dom";
 import Navbar from "@/layouts/Navbar";
+import VideoCallHost from "@/components/custom/VideoCallHost";
 
 const LayoutAdmin = () => {
   return (
@@ -18,6 +19,7 @@ const LayoutAdmin = () => {
           </SidebarProvider>
         </div>
       </div>
+      <VideoCallHost />
     </>
   );
 };

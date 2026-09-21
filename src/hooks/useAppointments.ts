@@ -77,3 +77,19 @@ export const useAssignAppointment = () => {
     },
   });
 };
+
+// Hook para obtener las credenciales del doctor para unirse a la videollamada de una cita
+export const useDoctorVideoToken = (appointmentId: number) => {
+  return useQuery({
+    queryKey: ["doctorVideoToken", appointmentId],
+    queryFn: () => {
+      if (!appointmentId) throw new Error("El ID de la cita es requerido");
+      return appointmentsService.getDoctorVideoToken(appointmentId);
+    },
+    enabled: !!appointmentId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+};

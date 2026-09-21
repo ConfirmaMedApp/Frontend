@@ -1,5 +1,6 @@
 import axiosService from "@/config/axiosService";
 import type {
+  UpdateAvatarRequest,
   UserRequest,
   UserUpdateRequest,
 } from "@/interfaces/usersInterface";
@@ -60,10 +61,43 @@ const updateUser = async (userData: UserUpdateRequest) => {
   }
 };
 
+// Funcion para obtener los avatares predefinidos disponibles
+const getAvatarPresets = async () => {
+  try {
+    const response = await axiosService.get(`${API_URL}/avatars/presets`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error obteniendo los avatares disponibles");
+  }
+};
+
+// Funcion para actualizar el avatar de un usuario (preset o archivo, no ambos)
+const updateAvatar = async (id: number, data: UpdateAvatarRequest) => {
+  try {
+    const formData = new FormData();
+    if (data.presetKey) {
+      formData.append("PresetKey", data.presetKey);
+    } else if (data.file) {
+      formData.append("File", data.file);
+    }
+
+    const response = await axiosService.put(
+      `${API_URL}/${id}/avatar`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error actualizando el avatar");
+  }
+};
+
 // Exportar el servicio de usuarios
 export const usersService = {
   getAllUsers,
   getUserById,
   createUser,
   updateUser,
+  getAvatarPresets,
+  updateAvatar,
 };
