@@ -63,3 +63,25 @@ export const useUpdatePatient = () => {
     },
   });
 };
+
+// Hook para obtener los pacientes atendidos por el doctor autenticado
+export const useAttendedPatients = (params: {
+  startDate?: string | null;
+  search?: string | null;
+  limit?: number | null;
+  offset?: number | null;
+}) => {
+  return useQuery({
+    queryKey: ["attendedPatients", params],
+    queryFn: () =>
+      patientsService.getAttendedPatients(
+        params.startDate ?? null,
+        params.search ?? null,
+        params.limit ?? null,
+        params.offset ?? null,
+      ),
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: "always",
+  });
+};

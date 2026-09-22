@@ -35,11 +35,24 @@ import {
 } from "../components/ui/collapsible";
 import LogoConfirmamed from "../components/custom/LogoConfirmamed";
 import useAuth from "@/hooks/useAuth";
+import useUserRole from "@/hooks/useUserRole";
 import { menuItems } from "@/config/menuConfig";
+import { hasRoleAccess } from "@/config/roles";
 
 export const AppSidebar = () => {
   const { getInfoUser, logout } = useAuth();
   const navigate = useNavigate();
+
+  const { role: userRole } = useUserRole();
+  const visibleMenuItems = menuItems
+    .filter((module) => hasRoleAccess(module.roles, userRole))
+    .map((module) => ({
+      ...module,
+      childrens: module.childrens?.filter((child) =>
+        hasRoleAccess(child.roles, userRole),
+      ),
+    }))
+    .filter((module) => !module.childrens || module.childrens.length > 0);
 
   return (
     <Sidebar collapsible="icon" className="relative">
@@ -47,7 +60,7 @@ export const AppSidebar = () => {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <Link to="/specialities">
+              <Link to="/home">
                 <div>
                   <LogoConfirmamed width={20} height={20} />
                 </div>
@@ -61,7 +74,7 @@ export const AppSidebar = () => {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((module) => {
+              {visibleMenuItems.map((module) => {
                 if (module.childrens && module.childrens?.length > 0) {
                   return (
                     <Collapsible

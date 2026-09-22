@@ -49,11 +49,11 @@ interface ProfileModalProps {
 const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
   const { getInfoUser } = useAuth();
   const userId = getInfoUser()?.id || 0;
-  const isAdmin = getInfoUser()?.role === "admin";
 
   const updateMutation = useUpdateUser();
 
   const { data: userData, isLoading: isLoadingUser } = useUserById(userId);
+  const isAdmin = userData?.items?.role === "admin";
 
   const { data: doctors } = useDoctors({
     limit: null,

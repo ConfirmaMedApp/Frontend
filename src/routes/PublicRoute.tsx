@@ -60,9 +60,10 @@ const PublicRoute = () => {
     );
   }
 
-  // Si ya está autenticado, redirigir a la página principal o a la que intentaba acceder
+  // Si ya está autenticado, redirigir a la página que intentaba acceder o,
+  // en su defecto, a la página de entrada que decide según el rol.
   if (authState.isAuthenticated) {
-    const redirectTo = location.state?.from?.pathname || "/specialities";
+    const redirectTo = location.state?.from?.pathname || "/home";
     return <Navigate to={redirectTo} replace />;
   }
 

@@ -14,10 +14,33 @@ export const useAppointments = (params: {
   return useQuery({
     queryKey: ["appointments", params],
     queryFn: () =>
-      appointmentsService.getAllAppointments(
+      appointmentsService.getAllAppointmentsAdmin(
         params.dateSelected ?? "",
         params.specialityId ?? null,
         params.doctorId ?? null,
+        params.isOccupped ?? null,
+        params.limit ?? null,
+        params.offset ?? null
+      ),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+};
+
+// Hook para obtener las agendas del doctor autenticado con parámetros opcionales
+export const useAppointmentsDoctor = (params: {
+  dateSelected: string;
+  specialityId?: number | null;
+  isOccupped?: boolean | null;
+  limit?: number | null;
+  offset?: number | null;
+}) => {
+  return useQuery({
+    queryKey: ["appointmentsDoctor", params],
+    queryFn: () =>
+      appointmentsService.getAllAppointmentsDoctor(
+        params.dateSelected ?? "",
+        params.specialityId ?? null,
         params.isOccupped ?? null,
         params.limit ?? null,
         params.offset ?? null
@@ -40,6 +63,35 @@ export const useAppointmentById = (id: number) => {
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: false,
+  });
+};
+
+// Hook para obtener el historial de citas de un paciente específico
+export const useAppointmentsByPatient = (
+  patientId: number,
+  params: {
+    specialityId?: number | null;
+    startDate?: string | null;
+    limit?: number | null;
+    offset?: number | null;
+  },
+) => {
+  return useQuery({
+    queryKey: ["appointmentsByPatient", patientId, params],
+    queryFn: () => {
+      if (!patientId) throw new Error("El ID del paciente es requerido");
+      return appointmentsService.getAppointmentsByPatient(
+        patientId,
+        params.specialityId ?? null,
+        params.startDate ?? null,
+        params.limit ?? null,
+        params.offset ?? null,
+      );
+    },
+    enabled: !!patientId,
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: "always",
   });
 };
 

@@ -3,7 +3,7 @@ import type { AppointmentRequest } from "@/interfaces/appointmentsInterface";
 import { handleAxiosError } from "@/utils/handleAxiosError";
 
 // URL base para las operaciones de citas
-const API_URL = "/appointments";
+const API_URL = "/Appointments";
 
 // Crear una o varias citas
 const createAppointment = async (appointmentData: AppointmentRequest) => {
@@ -19,14 +19,14 @@ const createAppointment = async (appointmentData: AppointmentRequest) => {
 const getDaysForYearAndMonth = async (
   year: number,
   month: number,
-  doctorId: number | null = null
+  doctorId: number | null = null,
 ) => {
   try {
     const response = await axiosService.get(
       `${API_URL}/occupation/month/${year}/${month}`,
       {
         params: { doctorId },
-      }
+      },
     );
     return response.data;
   } catch (error) {
@@ -34,18 +34,18 @@ const getDaysForYearAndMonth = async (
   }
 };
 
-// Funcion para obtener todas las agendas con filtros opcionales
-const getAllAppointments = async (
+// Funcion para obtener todas las agendas que puede ver el administrador con filtros opcionales
+const getAllAppointmentsAdmin = async (
   dateSelected: string = "",
   specialityId: number | null = null,
   doctorId: number | null = null,
   isOccuped: boolean | null = null,
   limit: number | null = null,
-  offset: number | null = null
+  offset: number | null = null,
 ) => {
   try {
     const response = await axiosService.get(
-      `${API_URL}/user/dates/${dateSelected}/filters`,
+      `${API_URL}/dates/${dateSelected}/filters`,
       {
         params: {
           specialityId,
@@ -54,11 +54,60 @@ const getAllAppointments = async (
           limit,
           offset,
         },
-      }
+      },
     );
     return response.data;
   } catch (error) {
     handleAxiosError(error, "Error al obtener las citas");
+  }
+};
+
+// Funcion para obtener todas las agendas que puede ver el doctor con filtros opcionales
+const getAllAppointmentsDoctor = async (
+  dateSelected: string = "",
+  specialityId: number | null = null,
+  isOccuped: boolean | null = null,
+  limit: number | null = null,
+  offset: number | null = null,
+) => {
+  try {
+    const response = await axiosService.get(
+      `${API_URL}/user/dates/${dateSelected}/filters`,
+      {
+        params: {
+          specialityId,
+          isOccuped,
+          limit,
+          offset,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al obtener las citas");
+  }
+};
+
+// Función para obtener el historial de citas de un paciente específico
+const getAppointmentsByPatient = async (
+  patientId: number,
+  specialityId: number | null = null,
+  startDate: string | null = null,
+  limit: number | null = null,
+  offset: number | null = null,
+) => {
+  try {
+    const response = await axiosService.get(`${API_URL}/patient/${patientId}`, {
+      params: {
+        specialityId,
+        startDate,
+        limit,
+        offset,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al obtener las citas del paciente");
   }
 };
 
@@ -89,7 +138,7 @@ const assignAppointment = async (data: {
 const getDoctorVideoToken = async (appointmentId: number) => {
   try {
     const response = await axiosService.get(
-      `${API_URL}/${appointmentId}/video/doctor-token`
+      `${API_URL}/${appointmentId}/video/doctor-token`,
     );
     return response.data;
   } catch (error) {
@@ -101,8 +150,10 @@ const getDoctorVideoToken = async (appointmentId: number) => {
 export const appointmentsService = {
   createAppointment,
   getDaysForYearAndMonth,
-  getAllAppointments,
+  getAllAppointmentsAdmin,
+  getAllAppointmentsDoctor,
   assignAppointment,
   getAppointmentById,
   getDoctorVideoToken,
+  getAppointmentsByPatient,
 };

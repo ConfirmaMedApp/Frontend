@@ -32,7 +32,7 @@ const LoginPage = () => {
         toast.success(
           `¡Bienvenido de nuevo, ${response?.fullName || "usuario"}!`
         );
-        navigate("/specialities", { replace: true });
+        navigate("/home", { replace: true });
       } catch (error) {
         const errorMessage =
           (error as Error).message || "Usuario o contraseña incorrectos";

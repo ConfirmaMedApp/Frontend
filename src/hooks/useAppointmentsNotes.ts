@@ -12,6 +12,7 @@ export const useAppointmentNotes = (appointmentId: number) => {
     },
     enabled: !!appointmentId,
     staleTime: 0,
+    cacheTime: 0,
     refetchOnMount: "always",
   });
 };

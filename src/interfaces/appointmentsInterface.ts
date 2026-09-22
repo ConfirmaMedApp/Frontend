@@ -33,6 +33,10 @@ export interface Appointment {
   isOccuped: boolean;
   isApproved: boolean;
   userId: number;
+  roomName?: string;
+  roomUrl?: string;
+  roomCreatedAt?: string;
+  videoCallLink?: string | null;
 }
 
 // Interfaz para las credenciales de acceso del doctor a la videollamada

@@ -58,10 +58,33 @@ const updatePatient = async (patientData: PatientUpdateRequest) => {
   }
 };
 
+// Obtener los pacientes atendidos por el doctor autenticado (según el token)
+const getAttendedPatients = async (
+  startDate: string | null = null,
+  search: string | null = null,
+  limit: number | null = null,
+  offset: number | null = null
+) => {
+  try {
+    const response = await axiosService.get(`${API_URL}/doctor/attended`, {
+      params: {
+        startDate,
+        search,
+        limit,
+        offset,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al obtener los pacientes atendidos");
+  }
+};
+
 // Exportar las funciones del servicio de pacientes
 export const patientsService = {
   getAllPatients,
   getPatientById,
   createPatient,
   updatePatient,
+  getAttendedPatients,
 };

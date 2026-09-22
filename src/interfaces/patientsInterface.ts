@@ -10,11 +10,14 @@ export interface Patient {
   documentType: {
     id: number;
     name: string;
+    code?: string;
   };
   gender: {
     id: number;
     name: string;
+    code?: string;
   };
+  status?: boolean;
 }
 
 // Interfaz para crear un nuevo paciente

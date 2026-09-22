@@ -67,10 +67,12 @@ const Container = ({
                 </g>
               </svg>
             </Button>
-            <Button onClick={onClickButton}>
-              <Plus size={18} />
-              {titleButton}
-            </Button>
+            {onClickButton && (
+              <Button onClick={onClickButton}>
+                <Plus size={18} />
+                {titleButton}
+              </Button>
+            )}
           </div>
         )}
       </div>

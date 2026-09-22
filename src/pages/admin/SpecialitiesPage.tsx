@@ -41,8 +41,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AddDoctorsBySpecialityModal from "@/components/modals/AddDoctorsBySpecialityModal";
+import useUserRole from "@/hooks/useUserRole";
+import { SECRETARY_ROLE } from "@/config/roles";
 
 const SpecialitiesPage = () => {
+  // La secretaria solo puede listar especialidades, sin crear/editar/asociar doctores.
+  const { role } = useUserRole();
+  const canManage = role !== SECRETARY_ROLE;
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [search, setSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -123,8 +129,8 @@ const SpecialitiesPage = () => {
         description="Administra las especialidades médicas disponibles en el sistema"
         icon={<Brain size={30} />}
         onRetryData={handleRefetchData}
-        titleButton="Agregar especialidad"
-        onClickButton={handleOpenCreateModal}
+        titleButton={canManage ? "Agregar especialidad" : undefined}
+        onClickButton={canManage ? handleOpenCreateModal : undefined}
       >
         {/* Filtros */}
         <Card className="p-4 mb-4 w-full">
@@ -238,59 +244,61 @@ const SpecialitiesPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleOpenEditModal(speciality)}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="1.3em"
-                              height="1.3em"
-                              viewBox="0 0 24 24"
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleOpenEditModal(speciality)}
                             >
-                              <path
-                                fill="none"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16zm9.5-13.5l4 4m-.499 8.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0m2-3.5V17m0 4v1.5m3.031-5.25l-1.299.75m-3.463 2l-1.3.75m0-3.5l1.3.75m3.463 2l1.3.75"
-                              />
-                            </svg>
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleOpenAddDoctorsModal(speciality)
-                            }
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="1.3em"
-                              height="1.3em"
-                              viewBox="0 0 14 14"
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="1.3em"
+                                height="1.3em"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16zm9.5-13.5l4 4m-.499 8.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0m2-3.5V17m0 4v1.5m3.031-5.25l-1.299.75m-3.463 2l-1.3.75m0-3.5l1.3.75m3.463 2l1.3.75"
+                                />
+                              </svg>
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleOpenAddDoctorsModal(speciality)
+                              }
                             >
-                              <path
-                                fill="none"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M5.031 5.531a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5m4.407 1.5a.5.5 0 0 0-.5.5v1.407H7.53a.5.5 0 0 0-.5.5v1.625a.5.5 0 0 0 .5.5h1.407v1.406a.5.5 0 0 0 .5.5h1.624a.5.5 0 0 0 .5-.5v-1.406h1.407a.5.5 0 0 0 .5-.5V9.438a.5.5 0 0 0-.5-.5h-1.406V7.53a.5.5 0 0 0-.5-.5zm-3.91 5.5H.531v-.542a4.51 4.51 0 0 1 5.116-4.422"
-                              />
-                            </svg>
-                            Agregar doctores
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="1.3em"
+                                height="1.3em"
+                                viewBox="0 0 14 14"
+                              >
+                                <path
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5.031 5.531a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5m4.407 1.5a.5.5 0 0 0-.5.5v1.407H7.53a.5.5 0 0 0-.5.5v1.625a.5.5 0 0 0 .5.5h1.407v1.406a.5.5 0 0 0 .5.5h1.624a.5.5 0 0 0 .5-.5v-1.406h1.407a.5.5 0 0 0 .5-.5V9.438a.5.5 0 0 0-.5-.5h-1.406V7.53a.5.5 0 0 0-.5-.5zm-3.91 5.5H.531v-.542a4.51 4.51 0 0 1 5.116-4.422"
+                                />
+                              </svg>
+                              Agregar doctores
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
