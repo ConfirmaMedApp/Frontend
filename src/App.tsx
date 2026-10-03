@@ -67,7 +67,7 @@ function App() {
               {/* Punto de entrada tras el login: redirige según el rol */}
               <Route path="/home" element={<RoleHomeRedirect />} />
 
-              {/* Admin y secretaria: especialidades, doctores, pacientes y creación de agendas */}
+              {/* Admin y secretaria: especialidades, doctores, pacientes, creación de agendas y agendas programadas */}
               <Route
                 element={
                   <RoleRoute allowedRoles={[ADMIN_ROLE, SECRETARY_ROLE]} />
@@ -80,12 +80,12 @@ function App() {
                   path="/schedules/create"
                   element={<CreateSchedulesPage />}
                 />
+                <Route path="/schedules" element={<ShedulesPage />} />
               </Route>
 
-              {/* Solo admin: usuarios y listado general de agendas programadas */}
+              {/* Solo admin: usuarios */}
               <Route element={<RoleRoute allowedRoles={[ADMIN_ROLE]} />}>
                 <Route path="/users" element={<UsersPage />} />
-                <Route path="/schedules" element={<ShedulesPage />} />
               </Route>
 
               {/* Admin y doctor: sus propias agendas y los pacientes que ha atendido */}

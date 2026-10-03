@@ -78,7 +78,7 @@ export const menuItems: MenuItem[] = [
         titleKey: "menu.scheduledSchedules",
         icon: CalendarClock,
         to: "/schedules",
-        roles: [ADMIN_ROLE],
+        roles: [ADMIN_ROLE, SECRETARY_ROLE],
       },
     ],
   },
