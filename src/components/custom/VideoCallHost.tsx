@@ -1,10 +1,16 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import VideoCallPanel from "@/components/custom/VideoCallPanel";
-import { useDoctorVideoToken } from "@/hooks/useAppointments";
+import { isTerminalState } from "@/config/appointmentStates";
+import {
+  APPOINTMENTS_REFETCH_INTERVAL,
+  useAppointmentById,
+  useDoctorVideoToken,
+} from "@/hooks/useAppointments";
 import { useVideoCallStore } from "@/stores/videoCallStore";
 import type { DoctorVideoCredentials } from "@/interfaces/appointmentsInterface";
 
@@ -43,6 +49,24 @@ const VideoCallHost = () => {
   } = useDoctorVideoToken(appointment?.id || 0);
   const credentials: DoctorVideoCredentials | undefined =
     videoTokenData?.items;
+
+  // Al pasar a un estado final (finalizada, cancelada, no_asistio) el backend
+  // libera la sala de Daily. Se consulta la cita mientras dure la llamada para
+  // cerrarla de forma controlada en lugar de dejarla colgada. Las mutaciones de
+  // estado invalidan esta query, así que marcar "no asistió" durante la llamada
+  // la cierra de inmediato, sin esperar al intervalo.
+  const { data: liveAppointmentData } = useAppointmentById(
+    appointment?.id || 0,
+    { refetchInterval: APPOINTMENTS_REFETCH_INTERVAL },
+  );
+  const liveState = liveAppointmentData?.items?.state;
+
+  useEffect(() => {
+    if (liveState && isTerminalState(liveState.code)) {
+      toast.info(`La cita pasó a "${liveState.name}". La videollamada se cerró.`);
+      leaveCall();
+    }
+  }, [liveState, leaveCall]);
 
   const isEmbedded = !isMinimized && !!slotNode;
   const isFloating = !isEmbedded;

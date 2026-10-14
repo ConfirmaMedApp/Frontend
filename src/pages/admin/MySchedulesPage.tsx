@@ -1,3 +1,5 @@
+import AppointmentStateBadge from "@/components/custom/AppointmentStateBadge";
+import AppointmentStateActionDialog from "@/components/modals/AppointmentStateActionDialog";
 import Container from "@/components/partials/Container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,6 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Sheet,
   SheetContent,
@@ -36,9 +45,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  APPOINTMENT_STATE_ACTION_TEXTS,
+  APPOINTMENT_STATE_ORDER,
+  APPOINTMENT_STATES,
+  canAssign,
+  canCancel,
+  canJoinVideoCall,
+  canMarkNoShow,
+  getAppointmentStateCode,
+  getVideoCallBlockedReason,
+  hasPatient,
+  type AppointmentStateAction,
+} from "@/config/appointmentStates";
+import {
   useAppointmentsDoctor,
   useAssignAppointment,
+  useCancelAppointment,
   useGetDaysForYearAndMonth,
+  useMarkAppointmentNoShow,
 } from "@/hooks/useAppointments";
 import {
   useAppointmentNotes,
@@ -50,11 +74,14 @@ import useAuth from "@/hooks/useAuth";
 import { useVideoCallStore } from "@/stores/videoCallStore";
 import type {
   Appointment,
+  AppointmentStateCode,
   DaysAppointments,
 } from "@/interfaces/appointmentsInterface";
 import type { AppointmentNote } from "@/interfaces/appointmentsNotesInterface";
 import type { Patient } from "@/interfaces/patientsInterface";
 import type { Speciality } from "@/interfaces/specialitiesInterface";
+import { notifyAppointmentError } from "@/utils/appointmentErrors";
+import { isApiError } from "@/utils/handleAxiosError";
 import {
   BrushCleaning,
   CalendarClockIcon,
@@ -66,6 +93,7 @@ import {
   FunnelPlus,
   History,
   Loader2,
+  MoreHorizontal,
   RefreshCw,
   UserPlus,
   Video,
@@ -75,6 +103,12 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+
+// El endpoint del doctor solo devuelve citas ocupadas, por eso "Libre" no es
+// una opción del filtro de estado en esta página
+const DOCTOR_STATE_OPTIONS = APPOINTMENT_STATE_ORDER.filter(
+  (code) => code !== "libre",
+);
 
 const MySchedulesPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -88,7 +122,10 @@ const MySchedulesPage = () => {
 
   // Estados para filtros
   const [specialityId, setSpecialityId] = useState<number | null>(null);
-  const [isOccupped, setIsOccupped] = useState<boolean | null>(null);
+  // El endpoint del doctor no acepta `state`: este filtro se aplica en el cliente
+  const [stateFilter, setStateFilter] = useState<AppointmentStateCode | null>(
+    null,
+  );
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,6 +143,15 @@ const MySchedulesPage = () => {
   const [selectedNotesAppointment, setSelectedNotesAppointment] =
     useState<Appointment | null>(null);
   const [newNote, setNewNote] = useState("");
+
+  // Acción de estado (cancelar / marcar no asistió) pendiente de confirmación.
+  // `open` se maneja aparte de la acción para que el diálogo conserve sus textos
+  // durante la animación de cierre.
+  const [stateAction, setStateAction] = useState<{
+    type: AppointmentStateAction;
+    appointment: Appointment;
+    open: boolean;
+  } | null>(null);
 
   // Videollamada activa (estado global, sobrevive a la navegación entre páginas)
   const activeCallAppointment = useVideoCallStore((state) => state.appointment);
@@ -139,7 +185,6 @@ const MySchedulesPage = () => {
   } = useAppointmentsDoctor({
     dateSelected: selectedDate || "",
     specialityId,
-    isOccupped,
     limit: itemsPerPage,
     offset,
   });
@@ -158,6 +203,8 @@ const MySchedulesPage = () => {
   });
 
   const assignAppointmentMutation = useAssignAppointment();
+  const cancelMutation = useCancelAppointment();
+  const noShowMutation = useMarkAppointmentNoShow();
 
   const { data: notesData, isLoading: isLoadingNotes } = useAppointmentNotes(
     selectedNotesAppointment?.id || 0,
@@ -176,6 +223,23 @@ const MySchedulesPage = () => {
   // Extraer los items de la respuesta de la API
   const appointments = appointmentsData?.items || [];
   const canGoNext = appointments.length === itemsPerPage;
+
+  // Filtro de estado del lado del cliente. Al aplicarse sobre una página ya
+  // paginada, puede mostrar menos de `itemsPerPage` filas. La paginación sigue
+  // basándose en la página completa que devolvió el servidor.
+  const visibleAppointments = stateFilter
+    ? appointments.filter(
+        (a: Appointment) => getAppointmentStateCode(a) === stateFilter,
+      )
+    : appointments;
+
+  // `selectedNotesAppointment` es una copia guardada en estado local y no se
+  // actualiza cuando el listado se refresca. Se toma la versión vigente del
+  // listado para que el badge y los permisos cambien solos cuando el scheduler
+  // mueve la cita.
+  const currentNotesAppointment =
+    appointments.find((a: Appointment) => a.id === selectedNotesAppointment?.id) ??
+    selectedNotesAppointment;
 
   // Función para obtener los días del mes
   const getDaysInMonth = () => {
@@ -241,7 +305,7 @@ const MySchedulesPage = () => {
   // Limpiar filtros
   const clearFilters = () => {
     setSpecialityId(null);
-    setIsOccupped(null);
+    setStateFilter(null);
     setCurrentPage(1);
   };
 
@@ -289,19 +353,11 @@ const MySchedulesPage = () => {
       return;
     }
 
-    const appointmentStartDateTime = new Date(
-      `${appointment.dateAppointment}T${appointment.startHour}`,
-    );
-    if (appointmentStartDateTime > new Date()) {
-      toast.error("No se puede ingresar, la cita aún no ha comenzado");
-      return;
-    }
-
-    const appointmentEndDateTime = new Date(
-      `${appointment.dateAppointment}T${appointment.endHour}`,
-    );
-    if (appointmentEndDateTime < new Date()) {
-      toast.error("No se puede ingresar, la cita ya finalizó");
+    // La decisión se basa en el estado de la cita (ver appointmentStates.ts)
+    if (!canJoinVideoCall(appointment)) {
+      toast.error(
+        `No se puede ingresar. ${getVideoCallBlockedReason(appointment)}`,
+      );
       return;
     }
 
@@ -311,17 +367,17 @@ const MySchedulesPage = () => {
   };
 
   const handleAddNote = async () => {
-    if (!selectedNotesAppointment || !newNote.trim()) return;
+    if (!currentNotesAppointment || !newNote.trim()) return;
 
-    if (!selectedNotesAppointment.isOccuped) {
-      toast.error("No se pueden agregar notas a una cita disponible");
+    if (!hasPatient(currentNotesAppointment)) {
+      toast.error("No se pueden agregar notas a una cita libre");
       return;
     }
 
     try {
       await createNoteMutation.mutateAsync({
         note: newNote.trim(),
-        appointmentId: selectedNotesAppointment.id,
+        appointmentId: currentNotesAppointment.id,
         userId: getInfoUser()?.id || 0,
       });
       toast.success("Nota agregada correctamente");
@@ -344,8 +400,52 @@ const MySchedulesPage = () => {
       });
       toast.success("Cita asignada exitosamente");
       handleCloseAssignModal();
-    } catch {
-      toast.error("Error al asignar la cita");
+    } catch (error) {
+      notifyAppointmentError(error, "Error al asignar la cita");
+      // 409/404: la cita ya no se puede asignar (la tomó otro usuario o no
+      // existe). El listado ya se refrescó, así que se cierra el modal.
+      if (
+        isApiError(error) &&
+        (error.status === 409 || error.status === 404)
+      ) {
+        handleCloseAssignModal();
+      }
+    }
+  };
+
+  // Funciones para las acciones de estado (cancelar / marcar no asistió)
+  const handleOpenStateAction = (
+    type: AppointmentStateAction,
+    appointment: Appointment,
+  ) => {
+    setStateAction({ type, appointment, open: true });
+  };
+
+  const handleCloseStateAction = () => {
+    setStateAction((prev) => (prev ? { ...prev, open: false } : null));
+  };
+
+  const handleConfirmStateAction = async (note?: string) => {
+    if (!stateAction) return;
+    const { type, appointment } = stateAction;
+
+    try {
+      if (type === "cancel") {
+        await cancelMutation.mutateAsync({
+          appointmentId: appointment.id,
+          note,
+        });
+      } else {
+        await noShowMutation.mutateAsync({
+          appointmentId: appointment.id,
+          note,
+        });
+      }
+      toast.success(APPOINTMENT_STATE_ACTION_TEXTS[type].successMessage);
+    } catch (error) {
+      notifyAppointmentError(error, "No se pudo actualizar la cita");
+    } finally {
+      handleCloseStateAction();
     }
   };
 
@@ -493,63 +593,52 @@ const MySchedulesPage = () => {
                     {/* Filtro por especialidad */}
                     <div className="space-y-2">
                       <Label htmlFor="speciality">Especialidad</Label>
-                      <Select
+                      <SearchableSelect
+                        id="speciality"
                         value={specialityId?.toString() || "all"}
                         onValueChange={(value) => {
                           setSpecialityId(
                             value === "all" ? null : Number(value),
                           );
                         }}
-                      >
-                        <SelectTrigger id="speciality" className="w-full">
-                          <SelectValue placeholder="Todas las especialidades" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            Todas las especialidades
-                          </SelectItem>
-                          {specialitiesData?.items?.map(
-                            (speciality: Speciality) => (
-                              <SelectItem
-                                key={speciality.id}
-                                value={speciality.id.toString()}
-                              >
-                                {speciality.name}
-                              </SelectItem>
-                            ),
-                          )}
-                        </SelectContent>
-                      </Select>
+                        options={[
+                          { value: "all", label: "Todas las especialidades" },
+                          ...(specialitiesData?.items?.map(
+                            (speciality: Speciality) => ({
+                              value: speciality.id.toString(),
+                              label: speciality.name,
+                            }),
+                          ) ?? []),
+                        ]}
+                        placeholder="Todas las especialidades"
+                        searchPlaceholder="Buscar especialidad..."
+                        emptyText="No se encontraron especialidades."
+                      />
                     </div>
 
-                    {/* Filtro por estado de ocupación */}
+                    {/* Filtro por estado de la cita (se aplica en el cliente) */}
                     <div className="space-y-2">
-                      <Label htmlFor="status">Estado</Label>
+                      <Label htmlFor="state">Estado</Label>
                       <Select
-                        value={
-                          isOccupped === null
-                            ? "all"
-                            : isOccupped
-                              ? "occupied"
-                              : "available"
-                        }
+                        value={stateFilter ?? "all"}
                         onValueChange={(value) =>
-                          setIsOccupped(
+                          setStateFilter(
                             value === "all"
                               ? null
-                              : value === "occupied"
-                                ? true
-                                : false,
+                              : (value as AppointmentStateCode),
                           )
                         }
                       >
-                        <SelectTrigger id="status" className="w-full">
+                        <SelectTrigger id="state" className="w-full">
                           <SelectValue placeholder="Todos los estados" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos</SelectItem>
-                          <SelectItem value="available">Disponibles</SelectItem>
-                          <SelectItem value="occupied">Ocupadas</SelectItem>
+                          {DOCTOR_STATE_OPTIONS.map((code) => (
+                            <SelectItem key={code} value={code}>
+                              {APPOINTMENT_STATES[code].name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -608,31 +697,36 @@ const MySchedulesPage = () => {
                         Cargando agendas...
                       </TableCell>
                     </TableRow>
-                  ) : appointments?.length === 0 ? (
+                  ) : visibleAppointments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8">
-                        No se encontraron agendas para la fecha seleccionada
+                        {appointments.length === 0
+                          ? "No se encontraron agendas para la fecha seleccionada"
+                          : "Ninguna agenda de esta página coincide con el estado seleccionado"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    appointments?.map((appointment: Appointment) => {
+                    visibleAppointments.map((appointment: Appointment) => {
                       // Validar si la cita es anterior a la fecha y hora actual
-                      const now = new Date();
+                      // (solo se usa para bloquear "Asignar")
                       const appointmentDateTime = new Date(
                         `${appointment.dateAppointment}T${appointment.startHour}`,
                       );
-                      const isPastAppointment = appointmentDateTime < now;
+                      const isPastAppointment = appointmentDateTime < new Date();
 
-                      // Validar si la cita aún no ha comenzado, para bloquear el ingreso
-                      // a la videollamada (el room de Daily no está disponible antes de la hora de inicio)
-                      const isNotStartedAppointment = appointmentDateTime > now;
+                      // El resto de acciones depende del estado de la cita
+                      // (ver la matriz en appointmentStates.ts)
+                      const assignDisabled =
+                        !canAssign(appointment) || isPastAppointment;
 
-                      // Validar si la cita ya finalizó, para bloquear el ingreso a la videollamada
-                      const appointmentEndDateTime = new Date(
-                        `${appointment.dateAppointment}T${appointment.endHour}`,
-                      );
-                      const isFinishedAppointment =
-                        appointmentEndDateTime < now;
+                      const isOtherCallActive =
+                        !!activeCallAppointment &&
+                        activeCallAppointment.id !== appointment.id;
+                      const videoDisabled =
+                        !canJoinVideoCall(appointment) || isOtherCallActive;
+                      const videoTitle = isOtherCallActive
+                        ? "Ya hay una videollamada en curso"
+                        : (getVideoCallBlockedReason(appointment) ?? undefined);
 
                       const isRowSelected =
                         selectedNotesAppointment?.id === appointment.id;
@@ -660,15 +754,7 @@ const MySchedulesPage = () => {
                               : "-"}
                           </TableCell>
                           <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                appointment.isOccuped
-                                  ? "bg-destructive/10 text-destructive"
-                                  : "bg-green-500/10 text-green-500"
-                              }`}
-                            >
-                              {appointment.isOccuped ? "Ocupada" : "Disponible"}
-                            </span>
+                            <AppointmentStateBadge appointment={appointment} />
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -681,9 +767,7 @@ const MySchedulesPage = () => {
                                   e.stopPropagation();
                                   handleOpenAssignModal(appointment);
                                 }}
-                                disabled={
-                                  appointment.isOccuped || isPastAppointment
-                                }
+                                disabled={assignDisabled}
                               >
                                 <UserPlus className="h-4 w-4 mr-1" />
                                 Asignar
@@ -697,29 +781,58 @@ const MySchedulesPage = () => {
                                   e.stopPropagation();
                                   handleOpenVideoCall(appointment);
                                 }}
-                                disabled={
-                                  !appointment.isOccuped ||
-                                  isFinishedAppointment ||
-                                  isNotStartedAppointment ||
-                                  (!!activeCallAppointment &&
-                                    activeCallAppointment.id !==
-                                      appointment.id)
-                                }
-                                title={
-                                  isFinishedAppointment
-                                    ? "La cita ya finalizó"
-                                    : isNotStartedAppointment
-                                      ? "La cita aún no ha comenzado"
-                                      : activeCallAppointment &&
-                                          activeCallAppointment.id !==
-                                            appointment.id
-                                        ? "Ya hay una videollamada en curso"
-                                        : undefined
-                                }
+                                disabled={videoDisabled}
+                                title={videoTitle}
                               >
                                 <Video className="h-4 w-4 mr-1" />
                                 Videollamada
                               </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  asChild
+                                  onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                  ) => e.stopPropagation()}
+                                >
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    aria-label="Más acciones"
+                                    disabled={
+                                      !canCancel(appointment) &&
+                                      !canMarkNoShow(appointment)
+                                    }
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+                                    e.stopPropagation()
+                                  }
+                                >
+                                  <DropdownMenuItem
+                                    disabled={!canCancel(appointment)}
+                                    onSelect={() =>
+                                      handleOpenStateAction("cancel", appointment)
+                                    }
+                                  >
+                                    Cancelar cita
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    disabled={!canMarkNoShow(appointment)}
+                                    onSelect={() =>
+                                      handleOpenStateAction(
+                                        "no-show",
+                                        appointment,
+                                      )
+                                    }
+                                  >
+                                    Marcar no asistió
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -757,7 +870,7 @@ const MySchedulesPage = () => {
           )}
 
           {/* Panel de historial de notas de la cita seleccionada */}
-          {selectedNotesAppointment && (
+          {currentNotesAppointment && (
             <Card className="py-3 w-full lg:w-md shrink-0 flex flex-col max-h-[74vh] sticky top-0">
               <div className="flex items-center justify-between px-4">
                 <div className="flex items-center gap-2">
@@ -777,45 +890,38 @@ const MySchedulesPage = () => {
               <div className="border-t mt-3 px-4 pt-3 grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-muted-foreground">Fecha:</span>{" "}
-                  {selectedNotesAppointment.dateAppointment}
+                  {currentNotesAppointment.dateAppointment}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Hora:</span>{" "}
-                  {selectedNotesAppointment.startHour} -{" "}
-                  {selectedNotesAppointment.endHour}
+                  {currentNotesAppointment.startHour} -{" "}
+                  {currentNotesAppointment.endHour}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Duración:</span>{" "}
-                  {selectedNotesAppointment.duration.interval}
+                  {currentNotesAppointment.duration.interval}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Especialidad:</span>{" "}
-                  {selectedNotesAppointment.speciality.name}
+                  {currentNotesAppointment.speciality.name}
                 </div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Doctor:</span>{" "}
-                  {selectedNotesAppointment.doctor.name}{" "}
-                  {selectedNotesAppointment.doctor.lastName}
+                  {currentNotesAppointment.doctor.name}{" "}
+                  {currentNotesAppointment.doctor.lastName}
                 </div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Paciente:</span>{" "}
-                  {selectedNotesAppointment.patient
-                    ? `${selectedNotesAppointment.patient.name} ${selectedNotesAppointment.patient.lastname}`
+                  {currentNotesAppointment.patient
+                    ? `${currentNotesAppointment.patient.name} ${currentNotesAppointment.patient.lastname}`
                     : "-"}
                 </div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Estado:</span>{" "}
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                      selectedNotesAppointment.isOccuped
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-green-500/10 text-green-500"
-                    }`}
-                  >
-                    {selectedNotesAppointment.isOccuped
-                      ? "Ocupada"
-                      : "Disponible"}
-                  </span>
+                  <AppointmentStateBadge
+                    appointment={currentNotesAppointment}
+                    size="sm"
+                  />
                 </div>
               </div>
 
@@ -859,7 +965,7 @@ const MySchedulesPage = () => {
               </div>
 
               <div className="border-t mt-3 px-4 pt-3 space-y-2">
-                {selectedNotesAppointment.isOccuped ? (
+                {hasPatient(currentNotesAppointment) ? (
                   <>
                     <Textarea
                       placeholder="Escribe una nota sobre esta cita..."
@@ -911,8 +1017,8 @@ const MySchedulesPage = () => {
                   </>
                 ) : (
                   <p className="text-xs text-muted-foreground text-center py-2">
-                    Esta cita está disponible (sin paciente asignado), por lo
-                    que no se pueden agregar notas.
+                    Esta cita está libre (sin paciente asignado), por lo que no
+                    se pueden agregar notas.
                   </p>
                 )}
               </div>
@@ -920,6 +1026,26 @@ const MySchedulesPage = () => {
           )}
         </div>
       </div>
+
+      {/* Diálogo de confirmación para cancelar / marcar no asistió */}
+      {stateAction && (
+        <AppointmentStateActionDialog
+          open={stateAction.open}
+          onOpenChange={(open) => !open && handleCloseStateAction()}
+          title={APPOINTMENT_STATE_ACTION_TEXTS[stateAction.type].title}
+          description={
+            APPOINTMENT_STATE_ACTION_TEXTS[stateAction.type].description
+          }
+          confirmLabel={
+            APPOINTMENT_STATE_ACTION_TEXTS[stateAction.type].confirmLabel
+          }
+          notePlaceholder={
+            APPOINTMENT_STATE_ACTION_TEXTS[stateAction.type].notePlaceholder
+          }
+          isLoading={cancelMutation.isPending || noShowMutation.isPending}
+          onConfirm={handleConfirmStateAction}
+        />
+      )}
 
       {/* Modal de asignación de citas */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>

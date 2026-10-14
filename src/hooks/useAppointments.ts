@@ -1,13 +1,34 @@
-import type { AppointmentRequest } from "@/interfaces/appointmentsInterface";
+import type {
+  AppointmentRequest,
+  AppointmentStateCode,
+} from "@/interfaces/appointmentsInterface";
 import { appointmentsService } from "@/services/appointemntsService";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+
+// Alineado con el scheduler del backend, que corre cada minuto
+export const APPOINTMENTS_REFETCH_INTERVAL = 60_000;
+
+// Invalida todas las vistas que muestran citas
+const invalidateAppointmentQueries = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["appointments"] }),
+    queryClient.invalidateQueries({ queryKey: ["appointmentsDoctor"] }),
+    queryClient.invalidateQueries({ queryKey: ["appointmentsByPatient"] }),
+    queryClient.invalidateQueries({ queryKey: ["appointment"] }),
+    queryClient.invalidateQueries({ queryKey: ["daysAppointments"] }),
+  ]);
 
 // Hook para obtener todas las agendas con parámetros opcionales
 export const useAppointments = (params: {
   dateSelected: string;
   specialityId?: number | null;
   doctorId?: number | null;
-  isOccupped?: boolean | null;
+  state?: AppointmentStateCode | null;
   limit?: number | null;
   offset?: number | null;
 }) => {
@@ -18,12 +39,16 @@ export const useAppointments = (params: {
         params.dateSelected ?? "",
         params.specialityId ?? null,
         params.doctorId ?? null,
-        params.isOccupped ?? null,
+        params.state ?? null,
         params.limit ?? null,
-        params.offset ?? null
+        params.offset ?? null,
       ),
     staleTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    // El estado de la cita puede cambiar sin intervención del usuario (scheduler)
+    refetchInterval: APPOINTMENTS_REFETCH_INTERVAL,
+    refetchIntervalInBackground: false,
   });
 };
 
@@ -31,7 +56,6 @@ export const useAppointments = (params: {
 export const useAppointmentsDoctor = (params: {
   dateSelected: string;
   specialityId?: number | null;
-  isOccupped?: boolean | null;
   limit?: number | null;
   offset?: number | null;
 }) => {
@@ -41,17 +65,23 @@ export const useAppointmentsDoctor = (params: {
       appointmentsService.getAllAppointmentsDoctor(
         params.dateSelected ?? "",
         params.specialityId ?? null,
-        params.isOccupped ?? null,
         params.limit ?? null,
-        params.offset ?? null
+        params.offset ?? null,
       ),
     staleTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: APPOINTMENTS_REFETCH_INTERVAL,
+    refetchIntervalInBackground: false,
   });
 };
 
-// Hook para obtener una agenda por su ID
-export const useAppointmentById = (id: number) => {
+// Hook para obtener una agenda por su ID. Acepta un intervalo opcional de refresco
+// (lo usa la videollamada para detectar cuando la cita llega a un estado final)
+export const useAppointmentById = (
+  id: number,
+  options?: { refetchInterval?: number | false },
+) => {
   return useQuery({
     queryKey: ["appointment", id],
     queryFn: () => {
@@ -63,6 +93,7 @@ export const useAppointmentById = (id: number) => {
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: false,
+    refetchInterval: options?.refetchInterval ?? false,
   });
 };
 
@@ -114,19 +145,49 @@ export const useCreateAppointment = () => {
   });
 };
 
-// Hook para crear una o varias agendas
+// Las mutaciones de estado usan onSettled (no onSuccess) para refrescar también
+// cuando hay un 409: en ese caso el estado real de la cita cambió en el servidor.
+
+// Hook para asignar una cita a un paciente
 export const useAssignAppointment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: { appointmentId: number; patientId: number }) =>
       appointmentsService.assignAppointment(data),
-    onSuccess: () => {
-      // Aquí podrías invalidar queries relacionadas si es necesario
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["appointment"] });
-      queryClient.invalidateQueries({ queryKey: ["daysAppointments"] });
-    },
+    onSettled: () => invalidateAppointmentQueries(queryClient),
+  });
+};
+
+// Hook para cancelar una cita asignada (con nota opcional)
+export const useCancelAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      appointmentId,
+      note,
+    }: {
+      appointmentId: number;
+      note?: string;
+    }) => appointmentsService.cancelAppointment(appointmentId, note),
+    onSettled: () => invalidateAppointmentQueries(queryClient),
+  });
+};
+
+// Hook para marcar la inasistencia del paciente en una cita en atención (con nota opcional)
+export const useMarkAppointmentNoShow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      appointmentId,
+      note,
+    }: {
+      appointmentId: number;
+      note?: string;
+    }) => appointmentsService.markAppointmentNoShow(appointmentId, note),
+    onSettled: () => invalidateAppointmentQueries(queryClient),
   });
 };
 

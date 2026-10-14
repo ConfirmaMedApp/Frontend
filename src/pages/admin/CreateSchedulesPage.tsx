@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
@@ -197,34 +198,28 @@ const CreateSchedulesPage = () => {
                     <FormLabel>
                       Especialidad <span className="text-destructive">*</span>
                     </FormLabel>
-                    <Select
-                      key={field.value}
-                      onValueChange={(value) => {
-                        const numValue = Number(value);
-                        field.onChange(numValue);
-                        setSelectedSpecialityId(numValue);
-                      }}
-                      value={field.value?.toString()}
-                      disabled={createAppointment.isPending}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Seleccione una especialidad" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {specialitiesData?.items?.map(
-                          (speciality: { id: number; name: string }) => (
-                            <SelectItem
-                              key={speciality.id}
-                              value={speciality.id.toString()}
-                            >
-                              {speciality.name}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={
+                          specialitiesData?.items?.map(
+                            (speciality: { id: number; name: string }) => ({
+                              value: speciality.id.toString(),
+                              label: speciality.name,
+                            })
+                          ) ?? []
+                        }
+                        value={field.value?.toString()}
+                        onValueChange={(value) => {
+                          const numValue = Number(value);
+                          field.onChange(numValue);
+                          setSelectedSpecialityId(numValue);
+                        }}
+                        placeholder="Seleccione una especialidad"
+                        searchPlaceholder="Buscar especialidad..."
+                        emptyText="No se encontraron especialidades."
+                        disabled={createAppointment.isPending}
+                      />
+                    </FormControl>
                     <FormDescription>
                       Selecciona la especialidad médica
                     </FormDescription>
@@ -242,46 +237,38 @@ const CreateSchedulesPage = () => {
                     <FormLabel>
                       Doctor <span className="text-destructive">*</span>
                     </FormLabel>
-                    <Select
-                      key={field.value}
-                      onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value?.toString()}
-                      disabled={
-                        !selectedSpecialityId ||
-                        loadingDoctors ||
-                        createAppointment.isPending
-                      }
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue
-                            placeholder={
-                              !selectedSpecialityId
-                                ? "Primero selecciona una especialidad"
-                                : loadingDoctors
-                                ? "Cargando doctores..."
-                                : "Seleccione un doctor"
-                            }
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {doctorsData?.items?.map(
-                          (doctor: {
-                            id: number;
-                            name: string;
-                            lastName: string;
-                          }) => (
-                            <SelectItem
-                              key={doctor.id}
-                              value={doctor.id.toString()}
-                            >
-                              {doctor.name} {doctor.lastName}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={
+                          doctorsData?.items?.map(
+                            (doctor: {
+                              id: number;
+                              name: string;
+                              lastName: string;
+                            }) => ({
+                              value: doctor.id.toString(),
+                              label: `${doctor.name} ${doctor.lastName}`,
+                            })
+                          ) ?? []
+                        }
+                        value={field.value?.toString()}
+                        onValueChange={(value) => field.onChange(Number(value))}
+                        placeholder={
+                          !selectedSpecialityId
+                            ? "Primero selecciona una especialidad"
+                            : loadingDoctors
+                            ? "Cargando doctores..."
+                            : "Seleccione un doctor"
+                        }
+                        searchPlaceholder="Buscar doctor..."
+                        emptyText="No se encontraron doctores."
+                        disabled={
+                          !selectedSpecialityId ||
+                          loadingDoctors ||
+                          createAppointment.isPending
+                        }
+                      />
+                    </FormControl>
                     <FormDescription>
                       Selecciona el doctor de la especialidad
                     </FormDescription>

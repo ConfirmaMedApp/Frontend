@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   userCreateSchema,
   userUpdateSchema,
@@ -339,37 +340,31 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                       <FormLabel>
                         Doctor <span className="text-destructive">*</span>
                       </FormLabel>
-                      <Select
-                        key={field.value}
-                        onValueChange={(value) =>
-                          field.onChange(value === "none" ? null : Number(value))
-                        }
-                        value={field.value == null ? "none" : field.value.toString()}
-                        disabled={isLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">Ninguno</SelectItem>
-                          {doctors?.items?.map(
-                            (doctor: {
-                              id: number;
-                              name: string;
-                              lastName: string;
-                            }) => (
-                              <SelectItem
-                                key={doctor.id}
-                                value={doctor.id.toString()}
-                              >
-                                {doctor.name} {doctor.lastName}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <SearchableSelect
+                          options={[
+                            { value: "none", label: "Ninguno" },
+                            ...(doctors?.items?.map(
+                              (doctor: {
+                                id: number;
+                                name: string;
+                                lastName: string;
+                              }) => ({
+                                value: doctor.id.toString(),
+                                label: `${doctor.name} ${doctor.lastName}`,
+                              })
+                            ) ?? []),
+                          ]}
+                          value={field.value == null ? "none" : field.value.toString()}
+                          onValueChange={(value) =>
+                            field.onChange(value === "none" ? null : Number(value))
+                          }
+                          placeholder="Seleccione"
+                          searchPlaceholder="Buscar doctor..."
+                          emptyText="No se encontraron doctores."
+                          disabled={isLoading}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

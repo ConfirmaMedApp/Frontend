@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import AppointmentStateBadge from "@/components/custom/AppointmentStateBadge";
 import Container from "@/components/partials/Container";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,13 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useAttendedPatients } from "@/hooks/usePatients";
 import { useAppointmentsByPatient } from "@/hooks/useAppointments";
 import { useAppointmentNotes } from "@/hooks/useAppointmentsNotes";
@@ -378,31 +373,26 @@ const AttendedPatientsPage = () => {
             <Card className="p-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="w-full sm:w-64">
-                  <Select
+                  <SearchableSelect
                     value={specialityId?.toString() || "all"}
                     onValueChange={(value) => {
                       setSpecialityId(value === "all" ? null : Number(value));
                       setAppointmentPage(1);
                     }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Todas las especialidades" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        Todas las especialidades
-                      </SelectItem>
-                      {specialitiesData?.items?.map((speciality: Speciality) => (
-                        <SelectItem
-                          key={speciality.id}
-                          value={speciality.id.toString()}
-                        >
-                          {speciality.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={[
+                      { value: "all", label: "Todas las especialidades" },
+                      ...(specialitiesData?.items?.map(
+                        (speciality: Speciality) => ({
+                          value: speciality.id.toString(),
+                          label: speciality.name,
+                        })
+                      ) ?? []),
+                    ]}
+                    icon={<Filter />}
+                    placeholder="Todas las especialidades"
+                    searchPlaceholder="Buscar especialidad..."
+                    emptyText="No se encontraron especialidades."
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <DatePicker
@@ -476,20 +466,7 @@ const AttendedPatientsPage = () => {
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          <Badge
-                            variant={
-                              appointment.isOccuped ? "destructive" : "success"
-                            }
-                          >
-                            {appointment.isOccuped ? "Ocupada" : "Disponible"}
-                          </Badge>
-                          <Badge
-                            variant={
-                              appointment.isApproved ? "success" : "secondary"
-                            }
-                          >
-                            {appointment.isApproved ? "Aprobada" : "Pendiente"}
-                          </Badge>
+                          <AppointmentStateBadge appointment={appointment} />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-muted-foreground border-t pt-3">
@@ -564,20 +541,7 @@ const AttendedPatientsPage = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Badge
-                    variant={
-                      selectedAppointment.isOccuped ? "destructive" : "success"
-                    }
-                  >
-                    {selectedAppointment.isOccuped ? "Ocupada" : "Disponible"}
-                  </Badge>
-                  <Badge
-                    variant={
-                      selectedAppointment.isApproved ? "success" : "secondary"
-                    }
-                  >
-                    {selectedAppointment.isApproved ? "Aprobada" : "Pendiente"}
-                  </Badge>
+                  <AppointmentStateBadge appointment={selectedAppointment} />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground border-t pt-3">

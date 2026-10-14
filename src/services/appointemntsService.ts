@@ -1,5 +1,10 @@
 import axiosService from "@/config/axiosService";
-import type { AppointmentRequest } from "@/interfaces/appointmentsInterface";
+import type {
+  ApiResponse,
+  Appointment,
+  AppointmentRequest,
+  AppointmentStateCode,
+} from "@/interfaces/appointmentsInterface";
 import { handleAxiosError } from "@/utils/handleAxiosError";
 
 // URL base para las operaciones de citas
@@ -35,22 +40,23 @@ const getDaysForYearAndMonth = async (
 };
 
 // Funcion para obtener todas las agendas que puede ver el administrador con filtros opcionales
+// Axios omite los params null, así que el filtro `state` solo viaja cuando tiene valor
 const getAllAppointmentsAdmin = async (
   dateSelected: string = "",
   specialityId: number | null = null,
   doctorId: number | null = null,
-  isOccuped: boolean | null = null,
+  state: AppointmentStateCode | null = null,
   limit: number | null = null,
   offset: number | null = null,
 ) => {
   try {
-    const response = await axiosService.get(
+    const response = await axiosService.get<ApiResponse<Appointment[]>>(
       `${API_URL}/dates/${dateSelected}/filters`,
       {
         params: {
+          state,
           specialityId,
           doctorId,
-          isOccuped,
           limit,
           offset,
         },
@@ -63,20 +69,19 @@ const getAllAppointmentsAdmin = async (
 };
 
 // Funcion para obtener todas las agendas que puede ver el doctor con filtros opcionales
+// Este endpoint solo devuelve citas ocupadas y no acepta el filtro de estado
 const getAllAppointmentsDoctor = async (
   dateSelected: string = "",
   specialityId: number | null = null,
-  isOccuped: boolean | null = null,
   limit: number | null = null,
   offset: number | null = null,
 ) => {
   try {
-    const response = await axiosService.get(
+    const response = await axiosService.get<ApiResponse<Appointment[]>>(
       `${API_URL}/user/dates/${dateSelected}/filters`,
       {
         params: {
           specialityId,
-          isOccuped,
           limit,
           offset,
         },
@@ -114,7 +119,9 @@ const getAppointmentsByPatient = async (
 // Función para obtener una cita por su ID
 const getAppointmentById = async (appointmentId: number) => {
   try {
-    const response = await axiosService.get(`${API_URL}/${appointmentId}`);
+    const response = await axiosService.get<ApiResponse<Appointment>>(
+      `${API_URL}/${appointmentId}`,
+    );
     return response.data;
   } catch (error) {
     handleAxiosError(error, "Error al obtener la cita por ID");
@@ -131,6 +138,33 @@ const assignAppointment = async (data: {
     return response.data;
   } catch (error) {
     handleAxiosError(error, "Error al asignar la cita");
+  }
+};
+
+// Cancela una cita asignada. El cupo no se reutiliza y se libera la sala de video.
+// `note` es opcional: si va vacía se omite del body (JSON.stringify descarta undefined)
+const cancelAppointment = async (appointmentId: number, note?: string) => {
+  try {
+    const response = await axiosService.post<ApiResponse<Appointment>>(
+      `${API_URL}/${appointmentId}/cancel`,
+      { note: note?.trim() || undefined },
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al cancelar la cita");
+  }
+};
+
+// Marca que el paciente no asistió. Solo aplica a citas en atención.
+const markAppointmentNoShow = async (appointmentId: number, note?: string) => {
+  try {
+    const response = await axiosService.post<ApiResponse<Appointment>>(
+      `${API_URL}/${appointmentId}/no-show`,
+      { note: note?.trim() || undefined },
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al marcar la inasistencia");
   }
 };
 
@@ -156,4 +190,6 @@ export const appointmentsService = {
   getAppointmentById,
   getDoctorVideoToken,
   getAppointmentsByPatient,
+  cancelAppointment,
+  markAppointmentNoShow,
 };
