@@ -52,7 +52,6 @@ import {
   canCancel,
   canJoinVideoCall,
   canMarkNoShow,
-  getAppointmentStateCode,
   getVideoCallBlockedReason,
   hasPatient,
   type AppointmentStateAction,
@@ -104,12 +103,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-// El endpoint del doctor solo devuelve citas ocupadas, por eso "Libre" no es
-// una opción del filtro de estado en esta página
-const DOCTOR_STATE_OPTIONS = APPOINTMENT_STATE_ORDER.filter(
-  (code) => code !== "libre",
-);
-
 const MySchedulesPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(() => {
@@ -122,7 +115,6 @@ const MySchedulesPage = () => {
 
   // Estados para filtros
   const [specialityId, setSpecialityId] = useState<number | null>(null);
-  // El endpoint del doctor no acepta `state`: este filtro se aplica en el cliente
   const [stateFilter, setStateFilter] = useState<AppointmentStateCode | null>(
     null,
   );
@@ -185,6 +177,7 @@ const MySchedulesPage = () => {
   } = useAppointmentsDoctor({
     dateSelected: selectedDate || "",
     specialityId,
+    state: stateFilter,
     limit: itemsPerPage,
     offset,
   });
@@ -223,15 +216,6 @@ const MySchedulesPage = () => {
   // Extraer los items de la respuesta de la API
   const appointments = appointmentsData?.items || [];
   const canGoNext = appointments.length === itemsPerPage;
-
-  // Filtro de estado del lado del cliente. Al aplicarse sobre una página ya
-  // paginada, puede mostrar menos de `itemsPerPage` filas. La paginación sigue
-  // basándose en la página completa que devolvió el servidor.
-  const visibleAppointments = stateFilter
-    ? appointments.filter(
-        (a: Appointment) => getAppointmentStateCode(a) === stateFilter,
-      )
-    : appointments;
 
   // `selectedNotesAppointment` es una copia guardada en estado local y no se
   // actualiza cuando el listado se refresca. Se toma la versión vigente del
@@ -616,25 +600,26 @@ const MySchedulesPage = () => {
                       />
                     </div>
 
-                    {/* Filtro por estado de la cita (se aplica en el cliente) */}
+                    {/* Filtro por estado de la cita (`?state=libre` para los cupos disponibles) */}
                     <div className="space-y-2">
                       <Label htmlFor="state">Estado</Label>
                       <Select
                         value={stateFilter ?? "all"}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
                           setStateFilter(
                             value === "all"
                               ? null
                               : (value as AppointmentStateCode),
-                          )
-                        }
+                          );
+                          setCurrentPage(1);
+                        }}
                       >
                         <SelectTrigger id="state" className="w-full">
                           <SelectValue placeholder="Todos los estados" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos</SelectItem>
-                          {DOCTOR_STATE_OPTIONS.map((code) => (
+                          {APPOINTMENT_STATE_ORDER.map((code) => (
                             <SelectItem key={code} value={code}>
                               {APPOINTMENT_STATES[code].name}
                             </SelectItem>
@@ -697,16 +682,14 @@ const MySchedulesPage = () => {
                         Cargando agendas...
                       </TableCell>
                     </TableRow>
-                  ) : visibleAppointments.length === 0 ? (
+                  ) : appointments?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8">
-                        {appointments.length === 0
-                          ? "No se encontraron agendas para la fecha seleccionada"
-                          : "Ninguna agenda de esta página coincide con el estado seleccionado"}
+                        No se encontraron agendas para la fecha seleccionada
                       </TableCell>
                     </TableRow>
                   ) : (
-                    visibleAppointments.map((appointment: Appointment) => {
+                    appointments?.map((appointment: Appointment) => {
                       // Validar si la cita es anterior a la fecha y hora actual
                       // (solo se usa para bloquear "Asignar")
                       const appointmentDateTime = new Date(

@@ -1,5 +1,7 @@
+import AppointmentHistoryTimeline from "@/components/custom/AppointmentHistoryTimeline";
 import AppointmentStateBadge from "@/components/custom/AppointmentStateBadge";
 import AppointmentStateActionDialog from "@/components/modals/AppointmentStateActionDialog";
+import RescheduleAppointmentDialog from "@/components/modals/RescheduleAppointmentDialog";
 import Container from "@/components/partials/Container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,6 +47,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   APPOINTMENT_STATE_ACTION_TEXTS,
   APPOINTMENT_STATE_ORDER,
   APPOINTMENT_STATES,
@@ -52,6 +60,7 @@ import {
   canCancel,
   canJoinVideoCall,
   canMarkNoShow,
+  canReschedule,
   getVideoCallBlockedReason,
   hasPatient,
   type AppointmentStateAction,
@@ -62,6 +71,7 @@ import {
   useCancelAppointment,
   useGetDaysForYearAndMonth,
   useMarkAppointmentNoShow,
+  useRescheduleAppointment,
 } from "@/hooks/useAppointments";
 import {
   useAppointmentNotes,
@@ -150,6 +160,13 @@ const ShedulesPage = () => {
     open: boolean;
   } | null>(null);
 
+  // Cita asignada pendiente de reagendar. `open` se maneja aparte por la misma razón
+  // que en `stateAction`: el diálogo conserva su contenido durante la animación de cierre.
+  const [rescheduleAction, setRescheduleAction] = useState<{
+    appointment: Appointment;
+    open: boolean;
+  } | null>(null);
+
   // Videollamada activa (estado global, sobrevive a la navegación entre páginas)
   const activeCallAppointment = useVideoCallStore((state) => state.appointment);
   const isCallMinimized = useVideoCallStore((state) => state.isMinimized);
@@ -206,6 +223,7 @@ const ShedulesPage = () => {
   const assignAppointmentMutation = useAssignAppointment();
   const cancelMutation = useCancelAppointment();
   const noShowMutation = useMarkAppointmentNoShow();
+  const rescheduleMutation = useRescheduleAppointment();
 
   const { data: notesData, isLoading: isLoadingNotes } = useAppointmentNotes(
     selectedNotesAppointment?.id || 0,
@@ -439,6 +457,43 @@ const ShedulesPage = () => {
       notifyAppointmentError(error, "No se pudo actualizar la cita");
     } finally {
       handleCloseStateAction();
+    }
+  };
+
+  // Funciones para reagendar una cita asignada a otro cupo libre
+  const handleOpenReschedule = (appointment: Appointment) => {
+    setRescheduleAction({ appointment, open: true });
+  };
+
+  const handleCloseReschedule = () => {
+    setRescheduleAction((prev) => (prev ? { ...prev, open: false } : null));
+  };
+
+  const handleConfirmReschedule = async (
+    newAppointmentId: number,
+    note?: string,
+  ) => {
+    if (!rescheduleAction) return;
+
+    try {
+      await rescheduleMutation.mutateAsync({
+        oldAppointmentId: rescheduleAction.appointment.id,
+        newAppointmentId,
+        note,
+      });
+      toast.success("Cita reagendada exitosamente");
+      handleCloseReschedule();
+    } catch (error) {
+      notifyAppointmentError(error, "No se pudo reagendar la cita");
+      // 409/404: la cita de origen cambió de estado, el cupo nuevo ya no está libre
+      // o alguna de las dos no existe. El listado ya se refrescó, así que se cierra
+      // el diálogo. Con 400 (validaciones) se deja abierto para elegir otro cupo.
+      if (
+        isApiError(error) &&
+        (error.status === 409 || error.status === 404)
+      ) {
+        handleCloseReschedule();
+      }
     }
   };
 
@@ -819,6 +874,7 @@ const ShedulesPage = () => {
                                     variant="ghost"
                                     aria-label="Más acciones"
                                     disabled={
+                                      !canReschedule(appointment) &&
                                       !canCancel(appointment) &&
                                       !canMarkNoShow(appointment)
                                     }
@@ -832,6 +888,14 @@ const ShedulesPage = () => {
                                     e.stopPropagation()
                                   }
                                 >
+                                  <DropdownMenuItem
+                                    disabled={!canReschedule(appointment)}
+                                    onSelect={() =>
+                                      handleOpenReschedule(appointment)
+                                    }
+                                  >
+                                    Reagendar cita
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     disabled={!canCancel(appointment)}
                                     onSelect={() =>
@@ -889,13 +953,13 @@ const ShedulesPage = () => {
             </Card>
           )}
 
-          {/* Panel de historial de notas de la cita seleccionada */}
+          {/* Panel de historial (notas y estados) de la cita seleccionada */}
           {currentNotesAppointment && (
             <Card className="py-3 w-full lg:w-md shrink-0 flex flex-col max-h-[74vh] sticky top-0">
               <div className="flex items-center justify-between px-4">
                 <div className="flex items-center gap-2">
                   <History className="h-4 w-4" />
-                  <p className="text-sm font-semibold">Historial de notas</p>
+                  <p className="text-sm font-semibold">Historial de la cita</p>
                 </div>
                 <Button
                   variant="ghost"
@@ -945,103 +1009,126 @@ const ShedulesPage = () => {
                 </div>
               </div>
 
-              <div className="border-t mt-3 px-4 pt-3 space-y-3 flex-1 min-h-0 overflow-y-auto">
-                {isLoadingNotes ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Cargando notas...
-                  </p>
-                ) : notesData?.items?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No hay notas registradas para esta cita.
-                  </p>
-                ) : (
-                  notesData?.items?.map((note: AppointmentNote) => (
-                    <div
-                      key={note.id}
-                      className="flex gap-2 rounded-md border p-2"
-                    >
-                      <Avatar className="size-8">
-                        <AvatarImage src={note.user.avatarUrl ?? undefined} />
-                        <AvatarFallback>
-                          {note.user.name?.charAt(0) || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium">
-                            {note.user.name} {note.user.lastname}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground shrink-0">
-                            {format(new Date(note.createdAt), "d MMM, HH:mm", {
-                              locale: es,
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-sm break-words">{note.note}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <Tabs defaultValue="notes" className="flex flex-col flex-1 min-h-0">
+                <div className="border-t mt-3 px-4 pt-3">
+                  <TabsList className="space-x-2">
+                    <TabsTrigger value="notes">Notas</TabsTrigger>
+                    <TabsTrigger value="states">Estados</TabsTrigger>
+                  </TabsList>
+                </div>
 
-              <div className="border-t mt-3 px-4 pt-3 space-y-2">
-                {hasPatient(currentNotesAppointment) ? (
-                  <>
-                    <Textarea
-                      placeholder="Escribe una nota sobre esta cita..."
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      disabled={createNoteMutation.isPending}
-                      className="min-h-[70px]"
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        onClick={handleAddNote}
-                        disabled={
-                          !newNote.trim() || createNoteMutation.isPending
-                        }
-                      >
-                        {createNoteMutation.isPending && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
+                <TabsContent
+                  value="notes"
+                  className="mt-0 flex flex-col flex-1 min-h-0"
+                >
+                  <div className="px-4 pt-3 space-y-3 flex-1 min-h-0 overflow-y-auto">
+                    {isLoadingNotes ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Cargando notas...
+                      </p>
+                    ) : notesData?.items?.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No hay notas registradas para esta cita.
+                      </p>
+                    ) : (
+                      notesData?.items?.map((note: AppointmentNote) => (
+                        <div
+                          key={note.id}
+                          className="flex gap-2 rounded-md border p-2"
                         >
-                          <path
-                            fill-rule="evenodd"
-                            clip-rule="evenodd"
-                            d="M8.98899 5.30778C10.169 2.90545 12.6404 1.25 15.5 1.25C19.5041 1.25 22.75 4.49594 22.75 8.5C22.75 9.57209 22.5168 10.5918 22.0977 11.5093C21.9883 11.7488 21.967 11.975 22.0156 12.1568L22.143 12.6328C22.5507 14.1566 21.1566 15.5507 19.6328 15.143L19.1568 15.0156C19.0215 14.9794 18.8616 14.982 18.6899 15.0307C18.1798 19.3775 14.4838 22.75 10 22.75C8.65003 22.75 7.36949 22.4438 6.2259 21.8963C5.99951 21.7879 5.7766 21.7659 5.59324 21.815L4.3672 22.143C2.84337 22.5507 1.44927 21.1566 1.857 19.6328L2.18504 18.4068C2.2341 18.2234 2.21211 18.0005 2.10373 17.7741C1.55623 16.6305 1.25 15.35 1.25 14C1.25 9.50945 4.63273 5.80897 8.98899 5.30778ZM10.735 5.28043C15.0598 5.64011 18.4914 9.14511 18.736 13.5016C18.9986 13.4766 19.2714 13.4935 19.5445 13.5666L20.0205 13.694C20.4293 13.8034 20.8034 13.4293 20.694 13.0205L20.5666 12.5445C20.4095 11.9571 20.5119 11.3708 20.7333 10.8861C21.0649 10.1602 21.25 9.35275 21.25 8.5C21.25 5.32436 18.6756 2.75 15.5 2.75C13.5181 2.75 11.7692 3.75284 10.735 5.28043ZM10 6.75C5.99594 6.75 2.75 9.99594 2.75 14C2.75 15.121 3.00392 16.1807 3.45667 17.1264C3.69207 17.6181 3.79079 18.2087 3.63407 18.7945L3.30602 20.0205C3.19664 20.4293 3.57066 20.8034 3.97949 20.694L5.20553 20.3659C5.79126 20.2092 6.38191 20.3079 6.87362 20.5433C7.81932 20.9961 8.87896 21.25 10 21.25C14.0041 21.25 17.25 18.0041 17.25 14C17.25 9.99594 14.0041 6.75 10 6.75Z"
-                            fill="currentColor"
-                          />
-                          <path
-                            d="M7.5 14C7.5 14.5523 7.05228 15 6.5 15C5.94772 15 5.5 14.5523 5.5 14C5.5 13.4477 5.94772 13 6.5 13C7.05228 13 7.5 13.4477 7.5 14Z"
-                            fill="currentColor"
-                          />
-                          <path
-                            d="M11 14C11 14.5523 10.5523 15 10 15C9.44772 15 9 14.5523 9 14C9 13.4477 9.44772 13 10 13C10.5523 13 11 13.4477 11 14Z"
-                            fill="currentColor"
-                          />
-                          <path
-                            d="M14.5 14C14.5 14.5523 14.0523 15 13.5 15C12.9477 15 12.5 14.5523 12.5 14C12.5 13.4477 12.9477 13 13.5 13C14.0523 13 14.5 13.4477 14.5 14Z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                        Agregar nota
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-2">
-                    Esta cita está libre (sin paciente asignado), por lo que no
-                    se pueden agregar notas.
-                  </p>
-                )}
-              </div>
+                          <Avatar className="size-8">
+                            <AvatarImage src={note.user.avatarUrl ?? undefined} />
+                            <AvatarFallback>
+                              {note.user.name?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium">
+                                {note.user.name} {note.user.lastname}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">
+                                {format(new Date(note.createdAt), "d MMM, HH:mm", {
+                                  locale: es,
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm break-words">{note.note}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="border-t mt-3 px-4 pt-3 space-y-2">
+                    {hasPatient(currentNotesAppointment) ? (
+                      <>
+                        <Textarea
+                          placeholder="Escribe una nota sobre esta cita..."
+                          value={newNote}
+                          onChange={(e) => setNewNote(e.target.value)}
+                          disabled={createNoteMutation.isPending}
+                          className="min-h-[70px]"
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            onClick={handleAddNote}
+                            disabled={
+                              !newNote.trim() || createNoteMutation.isPending
+                            }
+                          >
+                            {createNoteMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                            >
+                              <path
+                                fill-rule="evenodd"
+                                clip-rule="evenodd"
+                                d="M8.98899 5.30778C10.169 2.90545 12.6404 1.25 15.5 1.25C19.5041 1.25 22.75 4.49594 22.75 8.5C22.75 9.57209 22.5168 10.5918 22.0977 11.5093C21.9883 11.7488 21.967 11.975 22.0156 12.1568L22.143 12.6328C22.5507 14.1566 21.1566 15.5507 19.6328 15.143L19.1568 15.0156C19.0215 14.9794 18.8616 14.982 18.6899 15.0307C18.1798 19.3775 14.4838 22.75 10 22.75C8.65003 22.75 7.36949 22.4438 6.2259 21.8963C5.99951 21.7879 5.7766 21.7659 5.59324 21.815L4.3672 22.143C2.84337 22.5507 1.44927 21.1566 1.857 19.6328L2.18504 18.4068C2.2341 18.2234 2.21211 18.0005 2.10373 17.7741C1.55623 16.6305 1.25 15.35 1.25 14C1.25 9.50945 4.63273 5.80897 8.98899 5.30778ZM10.735 5.28043C15.0598 5.64011 18.4914 9.14511 18.736 13.5016C18.9986 13.4766 19.2714 13.4935 19.5445 13.5666L20.0205 13.694C20.4293 13.8034 20.8034 13.4293 20.694 13.0205L20.5666 12.5445C20.4095 11.9571 20.5119 11.3708 20.7333 10.8861C21.0649 10.1602 21.25 9.35275 21.25 8.5C21.25 5.32436 18.6756 2.75 15.5 2.75C13.5181 2.75 11.7692 3.75284 10.735 5.28043ZM10 6.75C5.99594 6.75 2.75 9.99594 2.75 14C2.75 15.121 3.00392 16.1807 3.45667 17.1264C3.69207 17.6181 3.79079 18.2087 3.63407 18.7945L3.30602 20.0205C3.19664 20.4293 3.57066 20.8034 3.97949 20.694L5.20553 20.3659C5.79126 20.2092 6.38191 20.3079 6.87362 20.5433C7.81932 20.9961 8.87896 21.25 10 21.25C14.0041 21.25 17.25 18.0041 17.25 14C17.25 9.99594 14.0041 6.75 10 6.75Z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M7.5 14C7.5 14.5523 7.05228 15 6.5 15C5.94772 15 5.5 14.5523 5.5 14C5.5 13.4477 5.94772 13 6.5 13C7.05228 13 7.5 13.4477 7.5 14Z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M11 14C11 14.5523 10.5523 15 10 15C9.44772 15 9 14.5523 9 14C9 13.4477 9.44772 13 10 13C10.5523 13 11 13.4477 11 14Z"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M14.5 14C14.5 14.5523 14.0523 15 13.5 15C12.9477 15 12.5 14.5523 12.5 14C12.5 13.4477 12.9477 13 13.5 13C14.0523 13 14.5 13.4477 14.5 14Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            Agregar nota
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        Esta cita está libre (sin paciente asignado), por lo que no
+                        se pueden agregar notas.
+                      </p>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent
+                  value="states"
+                  className="mt-0 px-4 pt-3 flex-1 min-h-0 overflow-y-auto"
+                >
+                  <AppointmentHistoryTimeline
+                    appointmentId={currentNotesAppointment.id}
+                  />
+                </TabsContent>
+              </Tabs>
             </Card>
           )}
         </div>
@@ -1064,6 +1151,17 @@ const ShedulesPage = () => {
           }
           isLoading={cancelMutation.isPending || noShowMutation.isPending}
           onConfirm={handleConfirmStateAction}
+        />
+      )}
+
+      {/* Diálogo para reagendar una cita asignada a otro cupo libre */}
+      {rescheduleAction && (
+        <RescheduleAppointmentDialog
+          open={rescheduleAction.open}
+          onOpenChange={(open) => !open && handleCloseReschedule()}
+          appointment={rescheduleAction.appointment}
+          isLoading={rescheduleMutation.isPending}
+          onConfirm={handleConfirmReschedule}
         />
       )}
 

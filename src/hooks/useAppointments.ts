@@ -1,6 +1,7 @@
 import type {
   AppointmentRequest,
   AppointmentStateCode,
+  RescheduleAppointmentRequest,
 } from "@/interfaces/appointmentsInterface";
 import { appointmentsService } from "@/services/appointemntsService";
 import {
@@ -20,6 +21,7 @@ const invalidateAppointmentQueries = (queryClient: QueryClient) =>
     queryClient.invalidateQueries({ queryKey: ["appointmentsDoctor"] }),
     queryClient.invalidateQueries({ queryKey: ["appointmentsByPatient"] }),
     queryClient.invalidateQueries({ queryKey: ["appointment"] }),
+    queryClient.invalidateQueries({ queryKey: ["appointmentHistory"] }),
     queryClient.invalidateQueries({ queryKey: ["daysAppointments"] }),
   ]);
 
@@ -56,6 +58,7 @@ export const useAppointments = (params: {
 export const useAppointmentsDoctor = (params: {
   dateSelected: string;
   specialityId?: number | null;
+  state?: AppointmentStateCode | null;
   limit?: number | null;
   offset?: number | null;
 }) => {
@@ -65,6 +68,7 @@ export const useAppointmentsDoctor = (params: {
       appointmentsService.getAllAppointmentsDoctor(
         params.dateSelected ?? "",
         params.specialityId ?? null,
+        params.state ?? null,
         params.limit ?? null,
         params.offset ?? null,
       ),
@@ -188,6 +192,36 @@ export const useMarkAppointmentNoShow = () => {
       note?: string;
     }) => appointmentsService.markAppointmentNoShow(appointmentId, note),
     onSettled: () => invalidateAppointmentQueries(queryClient),
+  });
+};
+
+// Hook para reagendar una cita asignada a otro cupo libre (con nota opcional)
+export const useRescheduleAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: RescheduleAppointmentRequest) =>
+      appointmentsService.rescheduleAppointment(data),
+    onSettled: () => invalidateAppointmentQueries(queryClient),
+  });
+};
+
+// Hook para obtener el historial de estados (línea de tiempo) de una cita.
+// El scheduler agrega registros solo, por eso se refresca con el mismo intervalo.
+export const useAppointmentHistory = (appointmentId: number) => {
+  return useQuery({
+    queryKey: ["appointmentHistory", appointmentId],
+    queryFn: () => {
+      if (!appointmentId) throw new Error("El ID de la cita es requerido");
+      return appointmentsService.getAppointmentHistory(appointmentId);
+    },
+    enabled: !!appointmentId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+    refetchInterval: APPOINTMENTS_REFETCH_INTERVAL,
+    refetchIntervalInBackground: false,
   });
 };
 

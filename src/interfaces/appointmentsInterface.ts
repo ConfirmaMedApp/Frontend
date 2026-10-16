@@ -59,6 +59,43 @@ export interface Appointment {
   videoCallLink?: string | null; // No viene en los listados
 }
 
+// Razones con las que el backend registra un cambio de estado en el historial
+export type AppointmentHistoryReason =
+  | "asignacion"
+  | "cancelacion"
+  | "no_asistio"
+  | "reagendamiento"
+  | "inicio_automatico"
+  | "finalizacion_automatica"
+  | "migracion";
+
+// Usuario que realizó un cambio de estado
+export interface AppointmentHistoryUser {
+  id: number;
+  name: string;
+  lastname: string;
+  role: string;
+  avatarUrl: string | null;
+}
+
+// Registro del historial de estados de una cita (un punto de su línea de tiempo)
+export interface AppointmentHistoryEntry {
+  id: number;
+  fromState: AppointmentState | null; // null en el primer registro (creación del cupo)
+  toState: AppointmentState;
+  reason: AppointmentHistoryReason | null;
+  note: string | null;
+  changedBy: AppointmentHistoryUser | null; // null = lo hizo el sistema (transición automática)
+  createdAt: string; // Llega sin zona horaria: se interpreta como UTC (ver parseServerDate)
+}
+
+// Body para reagendar: mueve al paciente de una cita asignada a otra libre
+export interface RescheduleAppointmentRequest {
+  oldAppointmentId: number;
+  newAppointmentId: number;
+  note?: string;
+}
+
 // Sobre estándar de respuesta del backend (camelCase)
 export interface ApiResponse<T> {
   success: boolean;

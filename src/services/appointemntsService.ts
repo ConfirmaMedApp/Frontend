@@ -2,8 +2,10 @@ import axiosService from "@/config/axiosService";
 import type {
   ApiResponse,
   Appointment,
+  AppointmentHistoryEntry,
   AppointmentRequest,
   AppointmentStateCode,
+  RescheduleAppointmentRequest,
 } from "@/interfaces/appointmentsInterface";
 import { handleAxiosError } from "@/utils/handleAxiosError";
 
@@ -69,10 +71,12 @@ const getAllAppointmentsAdmin = async (
 };
 
 // Funcion para obtener todas las agendas que puede ver el doctor con filtros opcionales
-// Este endpoint solo devuelve citas ocupadas y no acepta el filtro de estado
+// Sin `state` el endpoint devuelve solo las citas ocupadas; con `state` filtra por ese estado
+// Axios omite los params null, así que el filtro `state` solo viaja cuando tiene valor
 const getAllAppointmentsDoctor = async (
   dateSelected: string = "",
   specialityId: number | null = null,
+  state: AppointmentStateCode | null = null,
   limit: number | null = null,
   offset: number | null = null,
 ) => {
@@ -81,6 +85,7 @@ const getAllAppointmentsDoctor = async (
       `${API_URL}/user/dates/${dateSelected}/filters`,
       {
         params: {
+          state,
           specialityId,
           limit,
           offset,
@@ -168,6 +173,37 @@ const markAppointmentNoShow = async (appointmentId: number, note?: string) => {
   }
 };
 
+// Reagenda: mueve al paciente de una cita asignada a otra libre (misma especialidad y
+// posterior). El turno viejo queda libre y devuelve el nuevo ya asignado.
+// `note` es opcional: si va vacía se omite del body (JSON.stringify descarta undefined)
+const rescheduleAppointment = async ({
+  oldAppointmentId,
+  newAppointmentId,
+  note,
+}: RescheduleAppointmentRequest) => {
+  try {
+    const response = await axiosService.put<ApiResponse<Appointment>>(
+      `${API_URL}/reschedule`,
+      { oldAppointmentId, newAppointmentId, note: note?.trim() || undefined },
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al reagendar la cita");
+  }
+};
+
+// Historial de estados de una cita (su línea de tiempo), del más antiguo al más reciente
+const getAppointmentHistory = async (appointmentId: number) => {
+  try {
+    const response = await axiosService.get<
+      ApiResponse<AppointmentHistoryEntry[]>
+    >(`${API_URL}/${appointmentId}/history`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error al obtener el historial de la cita");
+  }
+};
+
 // Función para obtener las credenciales de acceso del doctor a la videollamada de una cita
 const getDoctorVideoToken = async (appointmentId: number) => {
   try {
@@ -192,4 +228,6 @@ export const appointmentsService = {
   getAppointmentsByPatient,
   cancelAppointment,
   markAppointmentNoShow,
+  rescheduleAppointment,
+  getAppointmentHistory,
 };

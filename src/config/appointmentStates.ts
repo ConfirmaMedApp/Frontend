@@ -1,5 +1,6 @@
 import type {
   Appointment,
+  AppointmentHistoryReason,
   AppointmentState,
   AppointmentStateCode,
 } from "@/interfaces/appointmentsInterface";
@@ -78,6 +79,26 @@ export const canCancel = (a: Appointment) =>
 export const canMarkNoShow = (a: Appointment) =>
   getAppointmentStateCode(a) === "en_atencion";
 
+// Solo una cita asignada se puede reagendar (en otro caso el backend responde 409)
+export const canReschedule = (a: Appointment) =>
+  getAppointmentStateCode(a) === "asignada";
+
+// Reglas del backend para el cupo de destino de un reagendamiento: libre, de la misma
+// especialidad y posterior al origen (puede ser el mismo día, a una hora más tarde).
+// Además no se ofrecen horarios que ya pasaron, igual que se bloquea "Asignar".
+export const canRescheduleTo = (
+  origin: Appointment,
+  target: Appointment,
+  now = new Date(),
+) => {
+  if (getAppointmentStateCode(target) !== "libre") return false;
+  if (target.speciality.id !== origin.speciality.id) return false;
+
+  const targetStart = new Date(`${target.dateAppointment}T${target.startHour}`);
+  const originStart = new Date(`${origin.dateAppointment}T${origin.startHour}`);
+  return targetStart > originStart && targetStart > now;
+};
+
 // Tiene paciente asignado (aplica para notas y datos del paciente)
 export const hasPatient = (a: Appointment) =>
   getAppointmentStateCode(a) !== "libre";
@@ -103,6 +124,22 @@ export const getVideoCallBlockedReason = (a: Appointment, now = new Date()) => {
     return now < start ? "La cita aún no ha comenzado" : "La cita ya finalizó";
   }
   return `La cita está en estado "${name}"`;
+};
+
+// ---- Historial de estados ----
+
+// Etiquetas de las razones de cambio que registra el backend
+export const APPOINTMENT_HISTORY_REASON_LABELS: Record<
+  AppointmentHistoryReason,
+  string
+> = {
+  asignacion: "Asignación",
+  cancelacion: "Cancelación",
+  no_asistio: "No asistió",
+  reagendamiento: "Reagendamiento",
+  inicio_automatico: "Inicio automático",
+  finalizacion_automatica: "Finalización automática",
+  migracion: "Migración de datos",
 };
 
 // ---- Acciones que cambian el estado desde la UI ----
