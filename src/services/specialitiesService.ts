@@ -75,10 +75,18 @@ const addDoctorsToSpeciality = async (data: {
 };
 
 // Funcion para obtener los doctores asociados a una especialidad
-const getDoctorsBySpeciality = async (specialityId: number) => {
+const getDoctorsBySpeciality = async (
+  specialityId: number,
+  search: string | null = null
+) => {
   try {
     const response = await axiosService.get(
-      `/DoctorsHasSpecialities/specialities/${specialityId}`
+      `/DoctorsHasSpecialities/specialities/${specialityId}`,
+      {
+        params: {
+          search,
+        },
+      }
     );
     return response.data;
   } catch (error) {

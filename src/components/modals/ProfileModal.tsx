@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -56,10 +56,13 @@ const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
   const { data: userData, isLoading: isLoadingUser } = useUserById(userId);
   const isAdmin = userData?.items?.role === "admin";
 
-  const { data: doctors } = useDoctors({
+  // Texto buscado en el select de doctor (se envía al endpoint)
+  const [doctorSearch, setDoctorSearch] = useState("");
+
+  const { data: doctors, isFetching: fetchingDoctors } = useDoctors({
     limit: null,
     offset: null,
-    search: null,
+    search: doctorSearch || null,
   });
 
   const form = useForm<UserUpdateFormValues>({
@@ -231,7 +234,7 @@ const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                       <FormControl>
                         <SearchableSelect
                           options={[
-                            { value: "none", label: "Ninguno" },
+                            { value: "none", label: "Ninguno", localFilter: true },
                             ...(doctors?.items?.map(
                               (doctor: {
                                 id: number;
@@ -247,6 +250,8 @@ const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                           onValueChange={(value) =>
                             field.onChange(value === "none" ? null : Number(value))
                           }
+                          onSearchChange={setDoctorSearch}
+                          loading={fetchingDoctors}
                           placeholder="Seleccione"
                           searchPlaceholder="Buscar doctor..."
                           emptyText="No se encontraron doctores."

@@ -33,6 +33,8 @@ import { useSpecialities } from "@/hooks/useSpecialities";
 import { useDoctorsBySpeciality } from "@/hooks/useSpecialities";
 import { useDurations } from "@/hooks/useDurations";
 import { useCreateAppointment } from "@/hooks/useAppointments";
+import type { Speciality } from "@/interfaces/specialitiesInterface";
+import type { Doctor } from "@/interfaces/doctorsInterface";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -44,19 +46,33 @@ const CreateSchedulesPage = () => {
     from: new Date(),
     to: undefined,
   });
-  const [selectedSpecialityId, setSelectedSpecialityId] = useState<
-    number | null
-  >(null);
+  // Se guardan los objetos elegidos (no solo el id) porque las listas de los selects
+  // se filtran en el servidor al buscar y la selección podría no estar en ellas
+  const [selectedSpeciality, setSelectedSpeciality] =
+    useState<Speciality | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const selectedSpecialityId = selectedSpeciality?.id ?? null;
 
-  const { data: specialitiesData } = useSpecialities({
-    limit: null,
-    offset: null,
-    search: null,
-    status: true,
-  });
+  // Texto buscado en cada select; el endpoint se consulta con él
+  const [specialitySearch, setSpecialitySearch] = useState("");
+  const [doctorSearch, setDoctorSearch] = useState("");
 
-  const { data: doctorsData, isLoading: loadingDoctors } =
-    useDoctorsBySpeciality(selectedSpecialityId || 0);
+  const { data: specialitiesData, isFetching: fetchingSpecialities } =
+    useSpecialities({
+      limit: null,
+      offset: null,
+      search: specialitySearch || null,
+      status: true,
+    });
+
+  const {
+    data: doctorsData,
+    isLoading: loadingDoctors,
+    isFetching: fetchingDoctors,
+  } = useDoctorsBySpeciality(selectedSpecialityId || 0, doctorSearch || null);
+
+  // Carga inicial de la lista; al buscar no debe deshabilitar el select abierto
+  const loadingDoctorsList = loadingDoctors && !doctorSearch;
 
   const { data: durationsData } = useDurations();
   const createAppointment = useCreateAppointment();
@@ -93,6 +109,7 @@ const CreateSchedulesPage = () => {
   useEffect(() => {
     if (selectedSpecialityId) {
       form.resetField("doctorId");
+      setSelectedDoctor(null);
     }
   }, [selectedSpecialityId, form]);
 
@@ -114,7 +131,8 @@ const CreateSchedulesPage = () => {
       );
       form.reset();
       setDateRange({ from: new Date(), to: undefined });
-      setSelectedSpecialityId(null);
+      setSelectedSpeciality(null);
+      setSelectedDoctor(null);
     } catch (error) {
       toast.error((error as Error).message || "Error al crear las agendas");
     }
@@ -123,7 +141,8 @@ const CreateSchedulesPage = () => {
   const handleClearForm = () => {
     form.reset();
     setDateRange({ from: new Date(), to: undefined });
-    setSelectedSpecialityId(null);
+    setSelectedSpeciality(null);
+    setSelectedDoctor(null);
     toast.success("Limpiando datos seleccionados");
   };
 
@@ -202,7 +221,7 @@ const CreateSchedulesPage = () => {
                       <SearchableSelect
                         options={
                           specialitiesData?.items?.map(
-                            (speciality: { id: number; name: string }) => ({
+                            (speciality: Speciality) => ({
                               value: speciality.id.toString(),
                               label: speciality.name,
                             })
@@ -212,8 +231,15 @@ const CreateSchedulesPage = () => {
                         onValueChange={(value) => {
                           const numValue = Number(value);
                           field.onChange(numValue);
-                          setSelectedSpecialityId(numValue);
+                          setSelectedSpeciality(
+                            specialitiesData?.items?.find(
+                              (speciality: Speciality) =>
+                                speciality.id === numValue
+                            ) ?? null
+                          );
                         }}
+                        onSearchChange={setSpecialitySearch}
+                        loading={fetchingSpecialities}
                         placeholder="Seleccione una especialidad"
                         searchPlaceholder="Buscar especialidad..."
                         emptyText="No se encontraron especialidades."
@@ -240,23 +266,27 @@ const CreateSchedulesPage = () => {
                     <FormControl>
                       <SearchableSelect
                         options={
-                          doctorsData?.items?.map(
-                            (doctor: {
-                              id: number;
-                              name: string;
-                              lastName: string;
-                            }) => ({
-                              value: doctor.id.toString(),
-                              label: `${doctor.name} ${doctor.lastName}`,
-                            })
-                          ) ?? []
+                          doctorsData?.items?.map((doctor: Doctor) => ({
+                            value: doctor.id.toString(),
+                            label: `${doctor.name} ${doctor.lastName}`,
+                          })) ?? []
                         }
                         value={field.value?.toString()}
-                        onValueChange={(value) => field.onChange(Number(value))}
+                        onValueChange={(value) => {
+                          const numValue = Number(value);
+                          field.onChange(numValue);
+                          setSelectedDoctor(
+                            doctorsData?.items?.find(
+                              (doctor: Doctor) => doctor.id === numValue
+                            ) ?? null
+                          );
+                        }}
+                        onSearchChange={setDoctorSearch}
+                        loading={fetchingDoctors}
                         placeholder={
                           !selectedSpecialityId
                             ? "Primero selecciona una especialidad"
-                            : loadingDoctors
+                            : loadingDoctorsList
                             ? "Cargando doctores..."
                             : "Seleccione un doctor"
                         }
@@ -264,7 +294,7 @@ const CreateSchedulesPage = () => {
                         emptyText="No se encontraron doctores."
                         disabled={
                           !selectedSpecialityId ||
-                          loadingDoctors ||
+                          loadingDoctorsList ||
                           createAppointment.isPending
                         }
                       />
@@ -466,20 +496,11 @@ const CreateSchedulesPage = () => {
               <p className="text-sm font-semibold text-muted-foreground">
                 Especialidad médica
               </p>
-              {form.watch("specialityId") ? (
+              {selectedSpeciality ? (
                 <>
-                  <p className="text-lg font-bold">
-                    {
-                      specialitiesData?.items?.find(
-                        (s: { id: number }) =>
-                          s.id === form.watch("specialityId")
-                      )?.name
-                    }
-                  </p>
+                  <p className="text-lg font-bold">{selectedSpeciality.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {specialitiesData?.items?.find(
-                      (s: { id: number }) => s.id === form.watch("specialityId")
-                    )?.code || "------"}
+                    {selectedSpeciality.code || "------"}
                   </p>
                 </>
               ) : (
@@ -492,18 +513,9 @@ const CreateSchedulesPage = () => {
               <p className="text-sm font-semibold text-muted-foreground">
                 Doctor asignado
               </p>
-              {form.watch("doctorId") && doctorsData?.items ? (
+              {selectedDoctor ? (
                 <p className="text-lg font-bold">
-                  {
-                    doctorsData.items.find(
-                      (d: { id: number }) => d.id === form.watch("doctorId")
-                    )?.name
-                  }{" "}
-                  {
-                    doctorsData.items.find(
-                      (d: { id: number }) => d.id === form.watch("doctorId")
-                    )?.lastName
-                  }
+                  {selectedDoctor.name} {selectedDoctor.lastName}
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">No seleccionado</p>

@@ -87,14 +87,20 @@ export const useAddDoctorsToSpeciality = () => {
   });
 };
 
-// Hook para obtener los doctores asociados a una especialidad
-export const useDoctorsBySpeciality = (specialityId: number) => {
+// Hook para obtener los doctores asociados a una especialidad, con búsqueda opcional
+export const useDoctorsBySpeciality = (
+  specialityId: number,
+  search?: string | null
+) => {
   return useQuery({
-    queryKey: ["doctorsBySpeciality", specialityId],
+    queryKey: ["doctorsBySpeciality", specialityId, search ?? null],
     queryFn: () => {
       if (!specialityId)
         throw new Error("El ID de la especialidad es requerido");
-      return specialityService.getDoctorsBySpeciality(specialityId);
+      return specialityService.getDoctorsBySpeciality(
+        specialityId,
+        search ?? null
+      );
     },
     enabled: !!specialityId,
     staleTime: 0,

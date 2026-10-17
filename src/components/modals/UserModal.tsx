@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -61,10 +61,13 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
 
-  const { data: doctors } = useDoctors({
+  // Texto buscado en el select de doctor (se envía al endpoint)
+  const [doctorSearch, setDoctorSearch] = useState("");
+
+  const { data: doctors, isFetching: fetchingDoctors } = useDoctors({
     limit: null,
     offset: null,
-    search: null,
+    search: doctorSearch || null,
   });
 
   const { data: avatarPresets } = useAvatarPresets();
@@ -343,7 +346,7 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                       <FormControl>
                         <SearchableSelect
                           options={[
-                            { value: "none", label: "Ninguno" },
+                            { value: "none", label: "Ninguno", localFilter: true },
                             ...(doctors?.items?.map(
                               (doctor: {
                                 id: number;
@@ -359,6 +362,8 @@ const UserModal = ({ open, onOpenChange, user, mode }: UserModalProps) => {
                           onValueChange={(value) =>
                             field.onChange(value === "none" ? null : Number(value))
                           }
+                          onSearchChange={setDoctorSearch}
+                          loading={fetchingDoctors}
                           placeholder="Seleccione"
                           searchPlaceholder="Buscar doctor..."
                           emptyText="No se encontraron doctores."

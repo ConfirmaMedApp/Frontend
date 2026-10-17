@@ -72,6 +72,8 @@ const AttendedPatientsPage = () => {
 
   // Filtros y paginación - nivel citas del paciente
   const [specialityId, setSpecialityId] = useState<number | null>(null);
+  // Texto buscado en el select de especialidad (se envía al endpoint)
+  const [specialitySearch, setSpecialitySearch] = useState("");
   const [appointmentStartDate, setAppointmentStartDate] = useState<
     Date | undefined
   >(undefined);
@@ -113,11 +115,12 @@ const AttendedPatientsPage = () => {
   const patientAppointments: Appointment[] = appointmentsData?.items || [];
   const canGoNextAppointments = patientAppointments.length === ITEMS_PER_PAGE;
 
-  const { data: specialitiesData } = useSpecialities({
-    limit: null,
-    offset: null,
-    search: null,
-  });
+  const { data: specialitiesData, isFetching: fetchingSpecialities } =
+    useSpecialities({
+      limit: null,
+      offset: null,
+      search: specialitySearch || null,
+    });
 
   // Nivel 3: notas de la cita seleccionada
   const {
@@ -380,7 +383,11 @@ const AttendedPatientsPage = () => {
                       setAppointmentPage(1);
                     }}
                     options={[
-                      { value: "all", label: "Todas las especialidades" },
+                      {
+                        value: "all",
+                        label: "Todas las especialidades",
+                        localFilter: true,
+                      },
                       ...(specialitiesData?.items?.map(
                         (speciality: Speciality) => ({
                           value: speciality.id.toString(),
@@ -388,6 +395,8 @@ const AttendedPatientsPage = () => {
                         })
                       ) ?? []),
                     ]}
+                    onSearchChange={setSpecialitySearch}
+                    loading={fetchingSpecialities}
                     icon={<Filter />}
                     placeholder="Todas las especialidades"
                     searchPlaceholder="Buscar especialidad..."

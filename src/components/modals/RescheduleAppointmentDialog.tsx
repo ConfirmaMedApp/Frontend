@@ -55,6 +55,8 @@ const RescheduleForm = ({
 
   const [selectedDate, setSelectedDate] = useState(originDate);
   const [doctorId, setDoctorId] = useState<number | null>(null);
+  // Texto buscado en el select de doctor (se envía al endpoint)
+  const [doctorSearch, setDoctorSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedSlot, setSelectedSlot] = useState<Appointment | null>(null);
   const [note, setNote] = useState("");
@@ -69,9 +71,8 @@ const RescheduleForm = ({
     offset: (page - 1) * SLOTS_PER_PAGE,
   });
 
-  const { data: doctorsData } = useDoctorsBySpeciality(
-    appointment.speciality.id,
-  );
+  const { data: doctorsData, isFetching: fetchingDoctors } =
+    useDoctorsBySpeciality(appointment.speciality.id, doctorSearch || null);
 
   const slots: Appointment[] = slotsData?.items ?? [];
   const canGoNext = slots.length === SLOTS_PER_PAGE;
@@ -151,12 +152,18 @@ const RescheduleForm = ({
                 setPage(1);
               }}
               options={[
-                { value: "all", label: "Todos los doctores" },
+                {
+                  value: "all",
+                  label: "Todos los doctores",
+                  localFilter: true,
+                },
                 ...(doctorsData?.items?.map((doctor: Doctor) => ({
                   value: doctor.id.toString(),
                   label: `${doctor.name} ${doctor.lastName}`,
                 })) ?? []),
               ]}
+              onSearchChange={setDoctorSearch}
+              loading={fetchingDoctors}
               placeholder="Todos los doctores"
               searchPlaceholder="Buscar doctor..."
               emptyText="No se encontraron doctores."
