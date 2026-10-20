@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import VitaLogo from "./VitaLogo";
 
-interface ConfirmamedLoaderProps {
+interface AnimeLoaderProps {
   onComplete?: () => void;
 }
 
-const AnimeLoader = ({ onComplete }: ConfirmamedLoaderProps) => {
+const AnimeLoader = ({ onComplete }: AnimeLoaderProps) => {
   const [progress, setProgress] = useState(0);
   const [currentModule, setCurrentModule] = useState("Inicializando...");
 
@@ -14,7 +15,7 @@ const AnimeLoader = ({ onComplete }: ConfirmamedLoaderProps) => {
     "Inicializando módulos...",
     "Verificando permisos...",
     "Preparando interface...",
-    "Confirmamed listo!",
+    "VitaApp listo!",
   ];
 
   useEffect(() => {
@@ -47,15 +48,9 @@ const AnimeLoader = ({ onComplete }: ConfirmamedLoaderProps) => {
 
   return (
     <div className="w-screen h-screen flex flex-col justify-center items-center overflow-hidden z-50 fixed bg-background">
-      {/* Logo Confirmamed */}
-      <div className="mb-12">
-        <div className="text-5xl font-bold tracking-wider">
-          <span className="text-primary">CONFIRMA</span>
-          <span className="text-foreground">MED</span>
-        </div>
-        <div className="text-center text-sm text-muted-foreground mt-2">
-          Sistema de Gestión Farmacéutica
-        </div>
+      {/* Logo VitaApp: sobre una placa clara para que se lea también en el tema oscuro */}
+      <div className="mb-12 rounded-2xl bg-brand-ice px-4 py-3">
+        <VitaLogo variant="full" className="w-72" />
       </div>
 
       {/* Información de progreso */}
@@ -66,7 +61,7 @@ const AnimeLoader = ({ onComplete }: ConfirmamedLoaderProps) => {
         {/* Barra de progreso */}
         <div className="w-80 bg-muted-foreground/50 rounded-full h-3 overflow-hidden">
           <div
-            className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+            className="h-full bg-gradient-to-r from-primary to-brand-teal rounded-full transition-all duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>

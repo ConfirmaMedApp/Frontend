@@ -251,8 +251,8 @@ const RescheduleForm = ({
 
       {/* Cupo nuevo seleccionado (se conserva al cambiar de fecha o de página) */}
       {selectedSlot && (
-        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-md">
-          <div className="text-sm font-medium text-green-700 dark:text-green-400">
+        <div className="p-3 bg-success/10 border border-success/20 rounded-md">
+          <div className="text-sm font-medium text-success">
             Nuevo horario seleccionado:
           </div>
           <div className="text-sm">

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IconLock, IconEye, IconEyeOff } from "@tabler/icons-react";
 import ModeToggle from "@/components/custom/ModeToggle";
+import VitaLogo from "@/components/custom/VitaLogo";
 import useAuth from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { User } from "lucide-react";
@@ -46,36 +47,30 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="w-screen relative h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <div className="w-screen relative h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10 p-4">
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>
-      <Card className="h-fit w-full overflow-y-auto remove-scroll max-w-3xl px-4 py-8 flex flex-col md:flex-row justify-between items-center relative">
+      <Card className="h-fit w-full overflow-y-auto remove-scroll max-w-3xl p-4 flex flex-col md:flex-row justify-between items-center relative">
         {/* Contenedor principal que se vuelve flex en md+ */}
-        <div className="w-full flex flex-col md:flex-row items-center gap-8 md:gap-12">
-          {/* Ilustración - En móvil arriba, en md+ a la izquierda */}
-          <div className="w-full md:w-1/2 flex flex-col items-center justify-center">
-            <div className="w-fit mx-auto">
-              <img
-                src="/svgs/doctorsLogin.svg"
-                alt="#doctoresLogin"
-                className="w-36 lg:w-44 xl:w-60"
-              />
-            </div>
-            <div className="flex items-center gap-1 flex-col text-center mt-4">
-              <h1 className="font-bold text-2xl md:text-3xl">
-                Confirma
-                <span className="text-primary">Med</span>
-              </h1>
-              <p className="text-xs opacity-70 leading-relaxed max-w-md">
-                Plataforma administrativa para la gestión centralizada de citas
-                médicas, recepcionistas y atención especializada.
-              </p>
-            </div>
+        <div className="w-full flex flex-col md:flex-row items-stretch gap-6 md:gap-10">
+          {/* Panel de marca - En móvil arriba, en md+ a la izquierda.
+              Siempre es claro: el logo tiene letras azul marino y se perdería sobre el tema oscuro */}
+          <div className="w-full md:w-1/2 rounded-xl px-6 py-8 flex flex-col items-center justify-center gap-5 text-center">
+            <VitaLogo variant="full" className="w-52 md:w-60 bg-brand-ice rounded-lg" />
+            <img
+              src="/svgs/doctorsLogin.svg"
+              alt="#doctoresLogin"
+              className="w-32 lg:w-40 xl:w-48"
+            />
+            <p className="text-xs leading-relaxed max-w-xs">
+              Plataforma administrativa para la gestión centralizada de citas
+              médicas, recepcionistas y atención especializada.
+            </p>
           </div>
 
           {/* Formulario - En móvil abajo, en md+ a la derecha */}
-          <div className="w-full md:w-1/2">
+          <div className="w-full md:w-1/2 flex items-center md:pr-4">
             <form onSubmit={handleSubmit} className="space-y-5 w-full">
               {error && (
                 <div className="py-2 px-4 text-sm text-destructive bg-destructive/5 border border-destructive/15 rounded-lg animate-shake">

@@ -33,7 +33,7 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "../components/ui/collapsible";
-import LogoConfirmamed from "../components/custom/LogoConfirmamed";
+import VitaLogo from "../components/custom/VitaLogo";
 import useAuth from "@/hooks/useAuth";
 import useUserRole from "@/hooks/useUserRole";
 import { menuItems } from "@/config/menuConfig";
@@ -59,12 +59,15 @@ export const AppSidebar = () => {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton size="lg" asChild>
               <Link to="/home">
-                <div>
-                  <LogoConfirmamed width={20} height={20} />
+                <VitaLogo variant="icon" className="size-8 shrink-0" />
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="truncate font-semibold">VitaApp</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    Tu salud, más cerca
+                  </span>
                 </div>
-                <span>ConfirmaMed</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

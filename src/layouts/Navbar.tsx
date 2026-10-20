@@ -11,6 +11,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { navigate } from "@/lib/navigation";
 import ModeToggle from "../components/custom/ModeToggle";
+import VitaLogo from "../components/custom/VitaLogo";
 import ProfileModal from "../components/modals/ProfileModal";
 import useAuth from "@/hooks/useAuth";
 import { useUserById } from "@/hooks/useUsers";
@@ -30,7 +31,13 @@ const Navbar = () => {
   return (
     <nav className="w-full bg-sidebar border-b shadow-sm px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <span className="font-bold text-lg ml-10 ">ConfirmaMed</span>
+        <div className="ml-10 flex items-center gap-2">
+          {/* En móvil el sidebar está oculto: el icono mantiene la marca visible */}
+          <div className="flex md:hidden">
+            <VitaLogo variant="icon" className="size-7" />
+          </div>
+          <span className="font-bold text-lg">VitaApp</span>
+        </div>
       </div>
       <div className="flex items-center gap-4 py-4 px-6 rounded-lg">
         <DropdownMenu>

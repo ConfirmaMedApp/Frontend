@@ -281,7 +281,7 @@ const ShedulesPage = () => {
       ? ""
       : dayData.statusDay.toLowerCase() === "ocupada"
         ? "bg-destructive"
-        : "bg-green-600/50";
+        : "bg-success/50";
   };
 
   // Función para verificar si es el día seleccionado
@@ -573,7 +573,7 @@ const ShedulesPage = () => {
                         {dayNames.map((day) => (
                           <div
                             key={day}
-                            className="text-center text-sm font-medium text-gray-500"
+                            className="text-center text-sm font-medium text-muted-foreground"
                           >
                             {day}
                           </div>
@@ -1280,8 +1280,8 @@ const ShedulesPage = () => {
 
             {/* Paciente seleccionado */}
             {selectedPatient && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-md">
-                <div className="text-sm font-medium text-green-700 dark:text-green-400">
+              <div className="p-3 bg-success/10 border border-success/20 rounded-md">
+                <div className="text-sm font-medium text-success">
                   Paciente seleccionado:
                 </div>
                 <div className="text-sm">
