@@ -103,6 +103,15 @@ export const canRescheduleTo = (
 export const hasPatient = (a: Appointment) =>
   getAppointmentStateCode(a) !== "libre";
 
+// El cobro aplica a citas con paciente: el enlace de pago se envía a su correo y la
+// cita queda marcada como pagada. Una cita libre no tiene a quién cobrar.
+export const canManagePayment = (a: Appointment) => hasPatient(a);
+
+// Una cita cancelada puede consultarse (p. ej. para saber si ya estaba pagada), pero
+// no se le genera un enlace de cobro nuevo.
+export const canGeneratePaymentLink = (a: Appointment) =>
+  hasPatient(a) && getAppointmentStateCode(a) !== "cancelada";
+
 // El scheduler corre cada minuto: al llegar start_hour la cita puede seguir
 // "asignada" hasta ~60 s. Se acepta ese margen usando la ventana horaria.
 export const canJoinVideoCall = (a: Appointment, now = new Date()) => {

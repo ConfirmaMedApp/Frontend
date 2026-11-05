@@ -1,5 +1,6 @@
 import AppointmentHistoryTimeline from "@/components/custom/AppointmentHistoryTimeline";
 import AppointmentStateBadge from "@/components/custom/AppointmentStateBadge";
+import AppointmentPaymentDialog from "@/components/modals/AppointmentPaymentDialog";
 import AppointmentStateActionDialog from "@/components/modals/AppointmentStateActionDialog";
 import RescheduleAppointmentDialog from "@/components/modals/RescheduleAppointmentDialog";
 import Container from "@/components/partials/Container";
@@ -59,6 +60,7 @@ import {
   canAssign,
   canCancel,
   canJoinVideoCall,
+  canManagePayment,
   canMarkNoShow,
   canReschedule,
   getVideoCallBlockedReason,
@@ -166,6 +168,13 @@ const ShedulesPage = () => {
   // Cita asignada pendiente de reagendar. `open` se maneja aparte por la misma razón
   // que en `stateAction`: el diálogo conserva su contenido durante la animación de cierre.
   const [rescheduleAction, setRescheduleAction] = useState<{
+    appointment: Appointment;
+    open: boolean;
+  } | null>(null);
+
+  // Cita cuyo pago se está gestionando (enlace de pago de Wompi). `open` se maneja aparte
+  // por la misma razón: el diálogo conserva su contenido durante la animación de cierre.
+  const [paymentAction, setPaymentAction] = useState<{
     appointment: Appointment;
     open: boolean;
   } | null>(null);
@@ -500,6 +509,15 @@ const ShedulesPage = () => {
         handleCloseReschedule();
       }
     }
+  };
+
+  // Funciones para el diálogo de pago de la cita
+  const handleOpenPayment = (appointment: Appointment) => {
+    setPaymentAction({ appointment, open: true });
+  };
+
+  const handleClosePayment = () => {
+    setPaymentAction((prev) => (prev ? { ...prev, open: false } : null));
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth();
@@ -891,6 +909,7 @@ const ShedulesPage = () => {
                                     variant="ghost"
                                     aria-label="Más acciones"
                                     disabled={
+                                      !canManagePayment(appointment) &&
                                       !canReschedule(appointment) &&
                                       !canCancel(appointment) &&
                                       !canMarkNoShow(appointment)
@@ -905,6 +924,14 @@ const ShedulesPage = () => {
                                     e.stopPropagation()
                                   }
                                 >
+                                  <DropdownMenuItem
+                                    disabled={!canManagePayment(appointment)}
+                                    onSelect={() =>
+                                      handleOpenPayment(appointment)
+                                    }
+                                  >
+                                    Pago de la cita
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     disabled={!canReschedule(appointment)}
                                     onSelect={() =>
@@ -1179,6 +1206,15 @@ const ShedulesPage = () => {
           appointment={rescheduleAction.appointment}
           isLoading={rescheduleMutation.isPending}
           onConfirm={handleConfirmReschedule}
+        />
+      )}
+
+      {/* Diálogo de pago de la cita (enlace de pago de Wompi) */}
+      {paymentAction && (
+        <AppointmentPaymentDialog
+          open={paymentAction.open}
+          onOpenChange={(open) => !open && handleClosePayment()}
+          appointment={paymentAction.appointment}
         />
       )}
 

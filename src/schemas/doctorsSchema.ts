@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Longitud máxima de la descripción (hoja de vida) que acepta la API
+export const DOCTOR_DESCRIPTION_MAX_LENGTH = 1000;
+
 // Esquema de validación para la creación de un doctor
 export const doctorCreateSchema = z.object({
   name: z
@@ -24,6 +27,17 @@ export const doctorCreateSchema = z.object({
     .string()
     .min(1, "El correo electrónico es obligatorio")
     .email("El correo electrónico no es válido"),
+  // Opcional; la foto no va aquí, se sube aparte (multipart)
+  description: z
+    .string({
+      message: "La descripción debe ser un texto",
+    })
+    .trim()
+    .max(
+      DOCTOR_DESCRIPTION_MAX_LENGTH,
+      `La descripción no puede superar los ${DOCTOR_DESCRIPTION_MAX_LENGTH} caracteres`
+    )
+    .optional(),
   status: z.boolean({
     message: "El estado es obligatorio",
   }),

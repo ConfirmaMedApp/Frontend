@@ -5,9 +5,15 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Filter,
+  Brain,
+  FileUser,
 } from "lucide-react";
 import { useState } from "react";
 import { useDoctors } from "@/hooks/useDoctors";
+import {
+  useDoctorsBySpeciality,
+  useSpecialities,
+} from "@/hooks/useSpecialities";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -21,8 +27,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Doctor } from "@/interfaces/doctorsInterface";
+import type { Speciality } from "@/interfaces/specialitiesInterface";
 import { toast } from "sonner";
 import DoctorModal from "@/components/modals/DoctorModal";
+import DoctorProfileModal from "@/components/modals/DoctorProfileModal";
+import DoctorAvatar from "@/components/custom/DoctorAvatar";
 import {
   Select,
   SelectContent,
@@ -30,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 
 const DoctorsPage = () => {
@@ -37,8 +47,12 @@ const DoctorsPage = () => {
   const [search, setSearch] = useState<string>("");
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [specialityFilter, setSpecialityFilter] = useState<string>("all");
+  const [specialitySearch, setSpecialitySearch] = useState<string>("");
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [profileOpen, setProfileOpen] = useState<boolean>(false);
+  const [profileDoctor, setProfileDoctor] = useState<Doctor | null>(null);
   const itemsPerPage = 25;
 
   // Calcular offset para la paginación
@@ -47,17 +61,49 @@ const DoctorsPage = () => {
   const statusValue =
     statusFilter === "all" ? null : statusFilter === "active" ? true : false;
 
-  // Obtener doctores con los filtros aplicados
-  const { data, isLoading, isError, error, refetch } = useDoctors({
+  const specialityId = specialityFilter === "all" ? 0 : Number(specialityFilter);
+  const filterBySpeciality = specialityId !== 0;
+
+  // Opciones del filtro por especialidad (la búsqueda se hace en el servidor)
+  const { data: specialitiesData, isFetching: fetchingSpecialities } =
+    useSpecialities({
+      limit: null,
+      offset: null,
+      search: specialitySearch || null,
+      status: true,
+    });
+
+  // Listado general (paginado en el servidor): solo se consulta sin filtro de especialidad
+  const doctorsQuery = useDoctors({
     limit: itemsPerPage,
     offset: offset,
     search: search || null,
     status: statusValue,
+    enabled: !filterBySpeciality,
   });
 
+  // Doctores de la especialidad elegida (con descripción y foto): el endpoint solo
+  // filtra por texto, así que el estado y la paginación se aplican abajo en el cliente
+  const specialityQuery = useDoctorsBySpeciality(specialityId, search || null);
+
+  const { data, isLoading, isError, error, refetch } = filterBySpeciality
+    ? specialityQuery
+    : doctorsQuery;
+
   // Extraer los items de la respuesta de la API
-  const doctors = data?.items || [];
-  const canGoNext = doctors.length === itemsPerPage; // Si hay items completos, probablemente hay más
+  const items: Doctor[] = Array.isArray(data?.items) ? data.items : [];
+  let doctors: Doctor[];
+  let canGoNext: boolean;
+  if (filterBySpeciality) {
+    const filtered = items.filter(
+      (doctor) => statusValue === null || doctor.status === statusValue
+    );
+    doctors = filtered.slice(offset, offset + itemsPerPage);
+    canGoNext = offset + itemsPerPage < filtered.length;
+  } else {
+    doctors = items;
+    canGoNext = doctors.length === itemsPerPage; // Si hay items completos, probablemente hay más
+  }
 
   // Handlers
   const handleSearchChange = (value: string) => {
@@ -91,10 +137,20 @@ const DoctorsPage = () => {
     setCurrentPage(1); // Resetear a la primera página al cambiar filtro
   };
 
+  const handleSpecialityChange = (value: string) => {
+    setSpecialityFilter(value);
+    setCurrentPage(1); // Resetear a la primera página al cambiar filtro
+  };
+
   const handleOpenEditModal = (doctor: Doctor) => {
     setModalMode("edit");
     setSelectedDoctor(doctor);
     setModalOpen(true);
+  };
+
+  const handleOpenProfileModal = (doctor: Doctor) => {
+    setProfileDoctor(doctor);
+    setProfileOpen(true);
   };
 
   return (
@@ -121,6 +177,32 @@ const DoctorsPage = () => {
                   className="pl-9"
                 />
               </div>
+            </div>
+            {/* Filtro por especialidad */}
+            <div className="w-full sm:w-64">
+              <SearchableSelect
+                options={[
+                  {
+                    value: "all",
+                    label: "Todas las especialidades",
+                    localFilter: true,
+                  },
+                  ...(specialitiesData?.items?.map(
+                    (speciality: Speciality) => ({
+                      value: speciality.id.toString(),
+                      label: speciality.name,
+                    })
+                  ) ?? []),
+                ]}
+                value={specialityFilter}
+                onValueChange={handleSpecialityChange}
+                onSearchChange={setSpecialitySearch}
+                loading={fetchingSpecialities}
+                icon={<Brain className="h-4 w-4" />}
+                placeholder="Especialidad"
+                searchPlaceholder="Buscar especialidad..."
+                emptyText="No se encontraron especialidades."
+              />
             </div>
             <div className="w-full sm:w-fit">
               <Select value={statusFilter} onValueChange={handleStatusChange}>
@@ -149,7 +231,7 @@ const DoctorsPage = () => {
                 <TableHead>Documento</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead className="w-[100px]">Estado</TableHead>
-                <TableHead className="w-[100px] text-right">Acciones</TableHead>
+                <TableHead className="w-[220px] text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -158,7 +240,10 @@ const DoctorsPage = () => {
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      <Skeleton className="h-4 w-32" />
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-9 rounded-full" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-4 w-32" />
@@ -173,6 +258,9 @@ const DoctorsPage = () => {
                       <Skeleton className="h-4 w-40" />
                     </TableCell>
                     <TableCell>
+                      <Skeleton className="h-5 w-16" />
+                    </TableCell>
+                    <TableCell>
                       <Skeleton className="h-8 w-20 ml-auto" />
                     </TableCell>
                   </TableRow>
@@ -180,7 +268,7 @@ const DoctorsPage = () => {
               ) : isError ? (
                 // Error
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     <p className="text-sm text-destructive font-semibold">
                       {(error as Error)?.message ||
                         "Ocurrió un error inesperado"}
@@ -190,7 +278,7 @@ const DoctorsPage = () => {
               ) : !data || doctors.length === 0 ? (
                 // Sin resultados
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     <div className="text-muted-foreground">
                       No se encontraron doctores
                     </div>
@@ -203,7 +291,17 @@ const DoctorsPage = () => {
                 // Datos
                 doctors.map((doctor: Doctor) => (
                   <TableRow key={doctor.id}>
-                    <TableCell className="font-medium">{doctor.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <DoctorAvatar
+                          src={doctor.photoUrl}
+                          name={doctor.name}
+                          lastName={doctor.lastName}
+                          className="size-9"
+                        />
+                        <span>{doctor.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">
                       {doctor.lastName}
                     </TableCell>
@@ -226,13 +324,23 @@ const DoctorsPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEditModal(doctor)}
-                      >
-                        Editar
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenProfileModal(doctor)}
+                        >
+                          <FileUser />
+                          Hoja de vida
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEditModal(doctor)}
+                        >
+                          Editar
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -273,6 +381,13 @@ const DoctorsPage = () => {
         onOpenChange={setModalOpen}
         doctor={selectedDoctor}
         mode={modalMode}
+      />
+
+      {/* Modal con la hoja de vida del doctor */}
+      <DoctorProfileModal
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        doctor={profileDoctor}
       />
     </>
   );

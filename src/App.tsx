@@ -16,6 +16,8 @@ import AttendedPatientsPage from "./pages/admin/AttendedPatientsPage";
 import CreateSchedulesPage from "./pages/admin/CreateSchedulesPage";
 import ShedulesPage from "./pages/admin/ShedulesPage";
 import MySchedulesPage from "./pages/admin/MySchedulesPage";
+import AppointmentCheckoutPage from "./pages/admin/AppointmentCheckoutPage";
+import PaymentResultPage from "./pages/public/PaymentResultPage";
 import { ADMIN_ROLE, DOCTOR_ROLE, SECRETARY_ROLE } from "./config/roles";
 
 function App() {
@@ -61,6 +63,11 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
           </Route>
 
+          {/* Retorno desde Wompi tras el pago (`Wompi:RedirectUrl` del backend). Es pública:
+              el paciente llega sin sesión. Va fuera de PublicRoute porque esa ruta saca de
+              la página a quien ya tiene sesión, y aquí tienen que poder entrar ambos. */}
+          <Route path="/pago/resultado" element={<PaymentResultPage />} />
+
           {/* Rutas protegidas */}
           <Route element={<ProtectedRoute />}>
             <Route element={<LayoutAdmin />}>
@@ -99,6 +106,21 @@ function App() {
                   element={<AttendedPatientsPage />}
                 />
                 <Route path="/schedules/mine" element={<MySchedulesPage />} />
+              </Route>
+
+              {/* Admin, secretaria y doctor: cobro de una cita dentro de la app (Widget o
+                  Checkout Web de Wompi). Es la misma gente que gestiona el pago desde las agendas. */}
+              <Route
+                element={
+                  <RoleRoute
+                    allowedRoles={[ADMIN_ROLE, SECRETARY_ROLE, DOCTOR_ROLE]}
+                  />
+                }
+              >
+                <Route
+                  path="/schedules/:appointmentId/checkout"
+                  element={<AppointmentCheckoutPage />}
+                />
               </Route>
             </Route>
           </Route>

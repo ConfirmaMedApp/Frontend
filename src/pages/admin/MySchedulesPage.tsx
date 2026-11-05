@@ -1,4 +1,5 @@
 import AppointmentStateBadge from "@/components/custom/AppointmentStateBadge";
+import AppointmentPaymentDialog from "@/components/modals/AppointmentPaymentDialog";
 import AppointmentStateActionDialog from "@/components/modals/AppointmentStateActionDialog";
 import Container from "@/components/partials/Container";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import {
   canAssign,
   canCancel,
   canJoinVideoCall,
+  canManagePayment,
   canMarkNoShow,
   getVideoCallBlockedReason,
   hasPatient,
@@ -143,6 +145,13 @@ const MySchedulesPage = () => {
   // durante la animación de cierre.
   const [stateAction, setStateAction] = useState<{
     type: AppointmentStateAction;
+    appointment: Appointment;
+    open: boolean;
+  } | null>(null);
+
+  // Cita cuyo pago se está gestionando (enlace de pago de Wompi). `open` se maneja aparte
+  // por la misma razón: el diálogo conserva su contenido durante la animación de cierre.
+  const [paymentAction, setPaymentAction] = useState<{
     appointment: Appointment;
     open: boolean;
   } | null>(null);
@@ -434,6 +443,15 @@ const MySchedulesPage = () => {
     } finally {
       handleCloseStateAction();
     }
+  };
+
+  // Funciones para el diálogo de pago de la cita
+  const handleOpenPayment = (appointment: Appointment) => {
+    setPaymentAction({ appointment, open: true });
+  };
+
+  const handleClosePayment = () => {
+    setPaymentAction((prev) => (prev ? { ...prev, open: false } : null));
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth();
@@ -791,6 +809,7 @@ const MySchedulesPage = () => {
                                     variant="ghost"
                                     aria-label="Más acciones"
                                     disabled={
+                                      !canManagePayment(appointment) &&
                                       !canCancel(appointment) &&
                                       !canMarkNoShow(appointment)
                                     }
@@ -804,6 +823,14 @@ const MySchedulesPage = () => {
                                     e.stopPropagation()
                                   }
                                 >
+                                  <DropdownMenuItem
+                                    disabled={!canManagePayment(appointment)}
+                                    onSelect={() =>
+                                      handleOpenPayment(appointment)
+                                    }
+                                  >
+                                    Pago de la cita
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     disabled={!canCancel(appointment)}
                                     onSelect={() =>
@@ -1036,6 +1063,15 @@ const MySchedulesPage = () => {
           }
           isLoading={cancelMutation.isPending || noShowMutation.isPending}
           onConfirm={handleConfirmStateAction}
+        />
+      )}
+
+      {/* Diálogo de pago de la cita (enlace de pago de Wompi) */}
+      {paymentAction && (
+        <AppointmentPaymentDialog
+          open={paymentAction.open}
+          onOpenChange={(open) => !open && handleClosePayment()}
+          appointment={paymentAction.appointment}
         />
       )}
 

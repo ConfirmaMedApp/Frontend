@@ -40,6 +40,16 @@ const getDoctorById = async (id: number) => {
   }
 };
 
+// Funcion para obtener la hoja de vida de un doctor (datos + descripción + foto + especialidades)
+const getDoctorProfile = async (id: number) => {
+  try {
+    const response = await axiosService.get(`${API_URL}/${id}/profile`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error obteniendo la hoja de vida del doctor");
+  }
+};
+
 // Funcion para crear un nuevo doctor
 const createDoctor = async (doctorData: DoctorRequest) => {
   try {
@@ -60,10 +70,33 @@ const updateDoctor = async (doctorData: DoctorUpdateRequest) => {
   }
 };
 
+// Funcion para subir o cambiar la foto de un doctor (multipart: el archivo es obligatorio)
+const updateDoctorPhoto = async (id: number, file: File) => {
+  try {
+    const formData = new FormData();
+    formData.append("File", file);
+
+    const response = await axiosService.put(
+      `${API_URL}/${id}/photo`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        // La API sube la imagen a Cloudinary antes de responder
+        timeout: 30000,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, "Error actualizando la foto del doctor");
+  }
+};
+
 // Exportar las funciones del servicio de doctores
 export const doctorsService = {
   getAllDoctors,
   getDoctorById,
+  getDoctorProfile,
   createDoctor,
   updateDoctor,
+  updateDoctorPhoto,
 };

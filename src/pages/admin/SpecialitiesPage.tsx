@@ -1,6 +1,7 @@
 import Container from "@/components/partials/Container";
 import {
   Brain,
+  CircleDollarSign,
   Search,
   Filter,
   ChevronsLeft,
@@ -41,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AddDoctorsBySpecialityModal from "@/components/modals/AddDoctorsBySpecialityModal";
+import SpecialityPricesModal from "@/components/modals/SpecialityPricesModal";
 import useUserRole from "@/hooks/useUserRole";
 import { SECRETARY_ROLE } from "@/config/roles";
 
@@ -55,6 +57,7 @@ const SpecialitiesPage = () => {
   const [modalOpenEdit, setModalOpenEdit] = useState<boolean>(false);
   const [modalOpenAddDoctors, setModalOpenAddDoctors] =
     useState<boolean>(false);
+  const [modalOpenPrices, setModalOpenPrices] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [selectedSpeciality, setSelectedSpeciality] =
     useState<Speciality | null>(null);
@@ -120,6 +123,11 @@ const SpecialitiesPage = () => {
   const handleOpenAddDoctorsModal = (speciality: Speciality) => {
     setSelectedSpeciality(speciality);
     setModalOpenAddDoctors(true);
+  };
+
+  const handleOpenPricesModal = (speciality: Speciality) => {
+    setSelectedSpeciality(speciality);
+    setModalOpenPrices(true);
   };
 
   return (
@@ -296,6 +304,12 @@ const SpecialitiesPage = () => {
                               </svg>
                               Agregar doctores
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleOpenPricesModal(speciality)}
+                            >
+                              <CircleDollarSign />
+                              Configurar precios
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -343,6 +357,12 @@ const SpecialitiesPage = () => {
       <AddDoctorsBySpecialityModal
         open={modalOpenAddDoctors}
         onOpenChange={setModalOpenAddDoctors}
+        specialityId={selectedSpeciality ? selectedSpeciality.id : 0}
+      />
+      {/* Precio (USD) de cada doctor para la especialidad */}
+      <SpecialityPricesModal
+        open={modalOpenPrices}
+        onOpenChange={setModalOpenPrices}
         specialityId={selectedSpeciality ? selectedSpeciality.id : 0}
       />
     </>
